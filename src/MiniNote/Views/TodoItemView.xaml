@@ -4,7 +4,7 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
 
     <UserControl.Resources>
-        <!-- 自定义复选框样式 -->
+        <!-- 自定义复选框样式 - 支持深浅主题 -->
         <Style x:Key="TodoCheckBoxStyle" TargetType="CheckBox">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -13,7 +13,7 @@
                         <Border x:Name="border"
                                 Width="22" Height="22"
                                 CornerRadius="11"
-                                BorderBrush="#50FFFFFF"
+                                BorderBrush="{DynamicResource TextTertiaryBrush}"
                                 BorderThickness="2"
                                 Background="Transparent">
                             <materialDesign:PackIcon x:Name="check"
@@ -31,7 +31,7 @@
                                 <Setter TargetName="check" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="BorderBrush" Value="#80FFFFFF"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -64,7 +64,7 @@
                 <!-- 主内容 -->
                 <Grid>
                     <TextBlock Text="{Binding Content}"
-                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
                                FontSize="14"
                                TextWrapping="Wrap"
                                LineHeight="22"
@@ -122,10 +122,10 @@
                                 Visibility="{Binding HasReminder, Converter={StaticResource BoolToVisibilityConverter}}">
                         <materialDesign:PackIcon Kind="Bell"
                                                  Width="12" Height="12"
-                                                 Foreground="#90FFFFFF"
+                                                 Foreground="{DynamicResource TextSecondaryBrush}"
                                                  VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding ReminderTimeText}"
-                                   Foreground="#90FFFFFF"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontSize="11"
                                    Margin="4,0,0,0"
                                    VerticalAlignment="Center"/>

@@ -13,9 +13,11 @@
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
     
     <Border CornerRadius="16"
-            Background="#F5202530"
-            BorderBrush="#40FFFFFF"
+            BorderBrush="{DynamicResource AppBorderBrush}"
             BorderThickness="1">
+        <Border.Background>
+            <SolidColorBrush Color="{DynamicResource DialogBackgroundColor}"/>
+        </Border.Background>
         <Border.Effect>
             <DropShadowEffect BlurRadius="28" ShadowDepth="8" Color="#000000" Opacity="0.5"/>
         </Border.Effect>
@@ -29,23 +31,25 @@
             <!-- 顶部强调线 -->
             <Border Grid.RowSpan="2"
                     Height="3"
-                    Background="{StaticResource AccentBrush}"
+                    Background="{DynamicResource AccentBrush}"
                     VerticalAlignment="Top"
                     Opacity="0.95"/>
             
             <!-- 标题栏 -->
             <Border Grid.Row="0"
-                    Background="#25FFFFFF"
                     CornerRadius="16,16,0,0">
+                <Border.Background>
+                    <SolidColorBrush Color="{DynamicResource DialogTitleBarColor}"/>
+                </Border.Background>
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
                         <materialDesign:PackIcon Kind="Cog"
                                                  Width="18" Height="18"
-                                                 Foreground="{StaticResource AccentBrush}"
+                                                 Foreground="{DynamicResource AccentBrush}"
                                                  VerticalAlignment="Center"
                                                  Margin="0,0,10,0"/>
                         <TextBlock Text="设置"
-                                   Foreground="White"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    FontWeight="SemiBold"
                                    FontSize="15"
                                    VerticalAlignment="Center"/>
@@ -68,12 +72,12 @@
                 <StackPanel>
                     <!-- 常规设置 -->
                     <TextBlock Text="常规"
-                               Foreground="#80FFFFFF"
+                               Foreground="{DynamicResource TextTertiaryBrush}"
                                FontSize="12"
                                FontWeight="SemiBold"
                                Margin="2,0,0,12"/>
                     
-                    <Border Background="#20FFFFFF"
+                    <Border Background="{DynamicResource SurfaceBrush}"
                             CornerRadius="12"
                             Padding="16"
                             Margin="0,0,0,18">
@@ -82,10 +86,10 @@
                             <Grid Margin="0,0,0,16">
                                 <StackPanel>
                                     <TextBlock Text="开机自启动"
-                                               Foreground="White"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontSize="14"/>
                                     <TextBlock Text="开机时自动启动 MiniNote"
-                                               Foreground="#60FFFFFF"
+                                               Foreground="{DynamicResource TextTertiaryBrush}"
                                                FontSize="11"
                                                Margin="0,3,0,0"/>
                                 </StackPanel>
@@ -101,10 +105,10 @@
                             <Grid Margin="0,0,0,16">
                                 <StackPanel>
                                     <TextBlock Text="嵌入桌面"
-                                               Foreground="White"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontSize="14"/>
                                     <TextBlock Text="固定窗口到桌面，Win+D 不会隐藏"
-                                               Foreground="#60FFFFFF"
+                                               Foreground="{DynamicResource TextTertiaryBrush}"
                                                FontSize="11"
                                                Margin="0,3,0,0"/>
                                 </StackPanel>
@@ -120,10 +124,10 @@
                             <Grid>
                                 <StackPanel>
                                     <TextBlock Text="窗口透明度"
-                                               Foreground="White"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontSize="14"/>
                                     <TextBlock Text="调整窗口的背景透明度"
-                                               Foreground="#60FFFFFF"
+                                               Foreground="{DynamicResource TextTertiaryBrush}"
                                                FontSize="11"
                                                Margin="0,3,0,0"/>
                                 </StackPanel>
@@ -139,7 +143,7 @@
                                             Style="{StaticResource ModernSliderStyle}"
                                             ValueChanged="SldOpacity_ValueChanged"/>
                                     <TextBlock Text="{Binding Value, ElementName=SldOpacity, StringFormat={}{0:P0}}"
-                                               Foreground="#80FFFFFF"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="12"
                                                Width="42"
                                                TextAlignment="Right"
@@ -150,55 +154,24 @@
                         </StackPanel>
                     </Border>
                     
-                    <!-- 外观设置 -->
-                    <TextBlock Text="外观"
-                               Foreground="#80FFFFFF"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Margin="2,0,0,12"/>
-                    
-                    <Border Background="#20FFFFFF"
-                            CornerRadius="12"
-                            Padding="16"
-                            Margin="0,0,0,18">
-                        <Grid>
-                            <StackPanel>
-                                <TextBlock Text="深色主题"
-                                           Foreground="White"
-                                           FontSize="14"/>
-                                <TextBlock Text="切换深色/浅色主题"
-                                           Foreground="#60FFFFFF"
-                                           FontSize="11"
-                                           Margin="0,3,0,0"/>
-                            </StackPanel>
-                            <ToggleButton x:Name="TglDarkTheme"
-                                          IsChecked="True"
-                                          HorizontalAlignment="Right"
-                                          VerticalAlignment="Center"
-                                          Style="{StaticResource ToggleSwitchStyle}"
-                                          Checked="TglDarkTheme_Changed"
-                                          Unchecked="TglDarkTheme_Changed"/>
-                        </Grid>
-                    </Border>
-                    
                     <!-- 通知设置 -->
                     <TextBlock Text="通知"
-                               Foreground="#80FFFFFF"
+                               Foreground="{DynamicResource TextTertiaryBrush}"
                                FontSize="12"
                                FontWeight="SemiBold"
                                Margin="2,0,0,12"/>
                     
-                    <Border Background="#20FFFFFF"
+                    <Border Background="{DynamicResource SurfaceBrush}"
                             CornerRadius="12"
                             Padding="16"
                             Margin="0,0,0,18">
                         <Grid>
                             <StackPanel>
                                 <TextBlock Text="启用提醒通知"
-                                           Foreground="White"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                            FontSize="14"/>
                                 <TextBlock Text="在设定时间发送 Windows 通知"
-                                           Foreground="#60FFFFFF"
+                                           Foreground="{DynamicResource TextTertiaryBrush}"
                                            FontSize="11"
                                            Margin="0,3,0,0"/>
                             </StackPanel>
@@ -212,28 +185,28 @@
                     
                     <!-- 关于 -->
                     <TextBlock Text="关于"
-                               Foreground="#80FFFFFF"
+                               Foreground="{DynamicResource TextTertiaryBrush}"
                                FontSize="12"
                                FontWeight="SemiBold"
                                Margin="2,0,0,12"/>
                     
-                    <Border Background="#20FFFFFF"
+                    <Border Background="{DynamicResource SurfaceBrush}"
                             CornerRadius="12"
                             Padding="16">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="10" Height="10" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <Ellipse Width="10" Height="10" Fill="{DynamicResource AccentBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <TextBlock Text="MiniNote"
-                                           Foreground="White"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                            FontSize="17"
                                            FontWeight="SemiBold"/>
                             </StackPanel>
                             <TextBlock Text="版本 1.0.0"
-                                       Foreground="#80FFFFFF"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
                                        FontSize="12"
                                        Margin="0,8,0,0"/>
                             <TextBlock Text="一款简洁的桌面待办工具"
-                                       Foreground="#60FFFFFF"
+                                       Foreground="{DynamicResource TextTertiaryBrush}"
                                        FontSize="12"
                                        Margin="0,8,0,0"/>
                         </StackPanel>

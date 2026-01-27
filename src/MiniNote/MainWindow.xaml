@@ -20,9 +20,9 @@
 
     <Border x:Name="MainBorder"
             CornerRadius="16"
-            BorderBrush="{StaticResource AppBorderBrush}"
+            BorderBrush="{DynamicResource AppBorderBrush}"
             BorderThickness="1"
-            Background="{StaticResource AppBackgroundBrush}">
+            Background="{DynamicResource AppBackgroundBrush}">
         <Border.Effect>
             <DropShadowEffect BlurRadius="28" ShadowDepth="8" Color="#000000" Opacity="0.4"/>
         </Border.Effect>
@@ -37,23 +37,23 @@
             <!-- 顶部强调线 -->
             <Border Grid.RowSpan="3"
                     Height="3"
-                    Background="{StaticResource AccentBrush}"
+                    Background="{DynamicResource AccentBrush}"
                     VerticalAlignment="Top"
                     Opacity="0.95"/>
 
             <!-- 标题栏 -->
             <Border Grid.Row="0"
-                    Background="{StaticResource SurfaceBrush}"
+                    Background="{DynamicResource SurfaceBrush}"
                     CornerRadius="16,16,0,0">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
                         <Ellipse Width="10"
                                  Height="10"
-                                 Fill="{StaticResource AccentBrush}"
+                                 Fill="{DynamicResource AccentBrush}"
                                  VerticalAlignment="Center"
                                  Margin="0,0,10,0"/>
                         <TextBlock Text="MiniNote"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                    FontWeight="SemiBold"
                                    FontSize="16"/>
                     </StackPanel>
@@ -113,12 +113,12 @@
                                          Foreground="#30FFFFFF"
                                          HorizontalAlignment="Center"/>
                 <TextBlock Text="暂无待办事项"
-                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
                            FontSize="14"
                            HorizontalAlignment="Center"
                            Margin="0,14,0,0"/>
                 <TextBlock Text="点击下方按钮添加"
-                           Foreground="{StaticResource TextTertiaryBrush}"
+                           Foreground="{DynamicResource TextTertiaryBrush}"
                            FontSize="12"
                            HorizontalAlignment="Center"
                            Margin="0,4,0,0"/>
@@ -140,26 +140,26 @@
 
             <!-- 底部统计 -->
             <Border Grid.Row="2"
-                    Background="{StaticResource DividerBrush}"
+                    Background="{DynamicResource DividerBrush}"
                     CornerRadius="0,0,16,16"
                     Padding="18,12">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <materialDesign:PackIcon Kind="CheckCircleOutline"
                                                  Width="14" Height="14"
-                                                 Foreground="{StaticResource TextTertiaryBrush}"
+                                                 Foreground="{DynamicResource TextTertiaryBrush}"
                                                  VerticalAlignment="Center"
                                                  Margin="0,0,6,0"/>
-                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="12">
+                        <TextBlock Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12">
                             <Run Text="已完成"/>
                         </TextBlock>
-                        <TextBlock Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" FontWeight="SemiBold" Margin="6,0,0,0">
+                        <TextBlock Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" FontWeight="SemiBold" Margin="6,0,0,0">
                             <Run Text="{Binding CompletedCount, Mode=OneWay}"/>
                         </TextBlock>
-                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="12" Margin="4,0">
+                        <TextBlock Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12" Margin="4,0">
                             <Run Text="/"/>
                         </TextBlock>
-                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" FontSize="12">
+                        <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12">
                             <Run Text="{Binding TotalCount, Mode=OneWay}"/>
                         </TextBlock>
                     </StackPanel>

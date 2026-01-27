@@ -177,7 +177,10 @@ public partial class MainWindow : Window
 
         // 加载设置
         _settings = await _dbService.GetSettingsAsync();
-        Logger.Info($"Settings loaded: EmbedDesktop={_settings.EmbedDesktop}");
+        Logger.Info($"Settings loaded: EmbedDesktop={_settings.EmbedDesktop}, IsDarkTheme={_settings.IsDarkTheme}");
+
+        // 应用主题
+        ThemeService.ApplyTheme(_settings.IsDarkTheme);
 
         // 应用窗口位置和大小
         Left = _settings.WindowX;
@@ -187,7 +190,7 @@ public partial class MainWindow : Window
 
         // 启用磨砂效果
         bool acrylicEnabled = AcrylicHelper.EnableAcrylic(this);
-        AcrylicHelper.SetDarkMode(this, true);
+        AcrylicHelper.SetDarkMode(this, _settings.IsDarkTheme);
         Logger.Info($"Acrylic effect: {(acrylicEnabled ? "enabled" : "not available")}");
 
         // 安装点击穿透钩子
