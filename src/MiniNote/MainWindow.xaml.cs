@@ -312,7 +312,7 @@ public partial class MainWindow : Window
     {
         if (embedded)
         {
-            MainBorder.Background = Brushes.Transparent;
+            // 嵌入模式：保持背景颜色一致，只移除边框和阴影
             MainBorder.BorderBrush = Brushes.Transparent;
             MainBorder.Effect = null;
             _embedService.EnableEmbedClickThrough(MainBorder, BtnPin);
@@ -330,10 +330,6 @@ public partial class MainWindow : Window
         }
         else
         {
-            if (_normalBackground != null)
-            {
-                MainBorder.Background = _normalBackground;
-            }
             if (_normalBorderBrush != null)
             {
                 MainBorder.BorderBrush = _normalBorderBrush;

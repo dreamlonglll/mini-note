@@ -19,7 +19,7 @@
         Closing="Window_Closing">
 
     <Border x:Name="MainBorder"
-            CornerRadius="16"
+            CornerRadius="0"
             BorderBrush="{DynamicResource AppBorderBrush}"
             BorderThickness="1"
             Background="{DynamicResource AppBackgroundBrush}">
@@ -34,17 +34,10 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 顶部强调线 -->
-            <Border Grid.RowSpan="3"
-                    Height="3"
-                    Background="{DynamicResource AccentBrush}"
-                    VerticalAlignment="Top"
-                    Opacity="0.95"/>
-
             <!-- 标题栏 -->
             <Border Grid.Row="0"
                     Background="{DynamicResource SurfaceBrush}"
-                    CornerRadius="16,16,0,0">
+                    CornerRadius="0">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
                         <Ellipse Width="10"
@@ -141,7 +134,7 @@
             <!-- 底部统计 -->
             <Border Grid.Row="2"
                     Background="{DynamicResource DividerBrush}"
-                    CornerRadius="0,0,16,16"
+                    CornerRadius="0"
                     Padding="18,12">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
