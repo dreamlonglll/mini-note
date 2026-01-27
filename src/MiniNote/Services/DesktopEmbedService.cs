@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Windows;
+using System.Windows.Forms;
 using System.Windows.Interop;
 using System.Windows.Media;
 using MiniNote.Helpers;
@@ -113,6 +114,14 @@ public class DesktopEmbedService
             Logger.Info($"EmbedToDesktop: Position(DIP)=({_savedLeft:F0}, {_savedTop:F0}), Size(DIP)=({_savedWidth:F0}, {_savedHeight:F0})");
             Logger.Info($"EmbedToDesktop: Position(PX)=({left}, {top}), Size(PX)=({width}, {height})");
 
+            var centerPoint = new System.Drawing.Point(left + (width / 2), top + (height / 2));
+            var screenBounds = Screen.FromPoint(centerPoint).Bounds;
+            double leftPercent = screenBounds.Width > 0 ? (left - screenBounds.Left) / (double)screenBounds.Width : 0;
+            double topPercent = screenBounds.Height > 0 ? (top - screenBounds.Top) / (double)screenBounds.Height : 0;
+            double widthPercent = screenBounds.Width > 0 ? width / (double)screenBounds.Width : 0;
+            double heightPercent = screenBounds.Height > 0 ? height / (double)screenBounds.Height : 0;
+            Logger.Info($"EmbedToDesktop: ScreenRect=({screenBounds.Left}, {screenBounds.Top})-({screenBounds.Right}, {screenBounds.Bottom}), Percent=({leftPercent:P1}, {topPercent:P1}, {widthPercent:P1}, {heightPercent:P1})");
+
             _targetParent = GetDesktopWorkerW(out string hostType);
             if (_targetParent == IntPtr.Zero)
             {
@@ -124,11 +133,23 @@ public class DesktopEmbedService
             LogWindowRect(_targetParent, $"HostParent({hostType})");
             if (TryGetWindowRect(_targetParent, out var hostRect))
             {
-                int relativeLeft = left - hostRect.Left;
-                int relativeTop = top - hostRect.Top;
-                Logger.Info($"EmbedToDesktop: HostRect=({hostRect.Left}, {hostRect.Top})-({hostRect.Right}, {hostRect.Bottom}), Relative=({relativeLeft}, {relativeTop})");
+                int hostOffsetX = screenBounds.Left - hostRect.Left;
+                int hostOffsetY = screenBounds.Top - hostRect.Top;
+                int percentLeft = (int)Math.Round(leftPercent * screenBounds.Width);
+                int percentTop = (int)Math.Round(topPercent * screenBounds.Height);
+                int percentWidth = (int)Math.Round(widthPercent * screenBounds.Width);
+                int percentHeight = (int)Math.Round(heightPercent * screenBounds.Height);
+                int relativeLeft = hostOffsetX + percentLeft;
+                int relativeTop = hostOffsetY + percentTop;
+
+                Logger.Info($"EmbedToDesktop: HostRect=({hostRect.Left}, {hostRect.Top})-({hostRect.Right}, {hostRect.Bottom}), HostOffset=({hostOffsetX}, {hostOffsetY})");
+                Logger.Info($"EmbedToDesktop: PercentPx=({percentLeft}, {percentTop}), SizePx=({percentWidth}, {percentHeight})");
+                Logger.Info($"EmbedToDesktop: RelativePx=({relativeLeft}, {relativeTop})");
+
                 left = relativeLeft;
                 top = relativeTop;
+                width = percentWidth;
+                height = percentHeight;
             }
             else
             {
