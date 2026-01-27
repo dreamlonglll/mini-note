@@ -1,0 +1,9 @@
+{
+    "dotnet.defaultSolution": "src/MiniNote.slnx",
+    "files.exclude": {
+        "**/bin": true,
+        "**/obj": true
+    },
+    "omnisharp.enableRoslynAnalyzers": true,
+    "omnisharp.enableEditorConfigSupport": true
+}

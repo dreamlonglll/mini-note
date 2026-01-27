@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "MiniNote (Debug)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/MiniNote/bin/Debug/net10.0-windows/MiniNote.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/MiniNote",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "MiniNote (Release)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-release",
+            "program": "${workspaceFolder}/src/MiniNote/bin/Release/net10.0-windows/MiniNote.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/MiniNote",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "Attach to Process",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}
