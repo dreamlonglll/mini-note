@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using MiniNote.Helpers;
 using MiniNote.Models;
 using MiniNote.Services;
@@ -20,11 +21,16 @@ public partial class MainWindow : Window
     private readonly TrayIconService _trayService;
     private AppSettings _settings = null!;
     private bool _isClosing = false;
+    private Brush? _normalBackground;
+    private Brush? _normalBorderBrush;
 
     public MainWindow()
     {
         InitializeComponent();
         Logger.Info("MainWindow initialized");
+
+        _normalBackground = MainBorder.Background;
+        _normalBorderBrush = MainBorder.BorderBrush;
 
         _dbService = new DatabaseService();
         _embedService = new DesktopEmbedService();
@@ -228,11 +234,15 @@ public partial class MainWindow : Window
     {
         if (embedded)
         {
+            MainBorder.Background = Brushes.Transparent;
+            MainBorder.BorderBrush = Brushes.Transparent;
+            _embedService.EnableEmbedClickThrough(MainBorder, BtnPin);
+
             // 嵌入模式：隐藏最小化和关闭按钮，显示提示
             BtnMinimize.Visibility = Visibility.Collapsed;
             BtnClose.Visibility = Visibility.Collapsed;
             BtnPin.Content = "\uE77A";
-            BtnPin.ToolTip = "取消嵌入桌面（点击无效，请使用托盘菜单）";
+            BtnPin.ToolTip = "取消嵌入桌面";
 
             // 更新托盘菜单
             _trayService.UpdateEmbedMenuText(true);
@@ -240,6 +250,16 @@ public partial class MainWindow : Window
         }
         else
         {
+            if (_normalBackground != null)
+            {
+                MainBorder.Background = _normalBackground;
+            }
+            if (_normalBorderBrush != null)
+            {
+                MainBorder.BorderBrush = _normalBorderBrush;
+            }
+            _embedService.DisableEmbedClickThrough();
+
             // 普通模式：显示所有按钮
             BtnMinimize.Visibility = Visibility.Visible;
             BtnClose.Visibility = Visibility.Visible;

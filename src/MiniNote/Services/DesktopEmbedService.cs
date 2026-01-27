@@ -21,6 +21,9 @@ public class DesktopEmbedService
     private FrameworkElement? _embedContent;
     private RenderMode _savedRenderMode = RenderMode.Default;
     private bool _renderModeChanged;
+    private FrameworkElement? _hitTestRoot;
+    private FrameworkElement? _clickThroughElement;
+    private bool _embedHookInstalled;
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
@@ -32,8 +35,40 @@ public class DesktopEmbedService
 
     private const int WS_CHILD = 0x40000000;
     private const int WS_VISIBLE = 0x10000000;
+    private const int WM_NCHITTEST = 0x0084;
+    private const int HTTRANSPARENT = -1;
+    private const int HTCLIENT = 1;
 
     public bool IsEmbedded => _isEmbedded;
+
+    public void EnableEmbedClickThrough(FrameworkElement hitTestRoot, FrameworkElement clickableElement)
+    {
+        _hitTestRoot = hitTestRoot;
+        _clickThroughElement = clickableElement;
+
+        if (_embedSource != null)
+        {
+            if (_embedHookInstalled)
+            {
+                _embedSource.RemoveHook(EmbedWndProc);
+            }
+            _embedSource.AddHook(EmbedWndProc);
+            _embedHookInstalled = true;
+            Logger.Info("EmbedHost: Click-through hook installed");
+        }
+    }
+
+    public void DisableEmbedClickThrough()
+    {
+        if (_embedSource != null && _embedHookInstalled)
+        {
+            _embedSource.RemoveHook(EmbedWndProc);
+            _embedHookInstalled = false;
+        }
+
+        _hitTestRoot = null;
+        _clickThroughElement = null;
+    }
 
     // 保存的窗口位置（DIP）
     private double _savedLeft;
@@ -111,6 +146,8 @@ public class DesktopEmbedService
         try
         {
             Logger.Info($"DetachFromDesktop: Saved position(DIP) = ({_savedLeft:F0}, {_savedTop:F0})");
+
+            DisableEmbedClickThrough();
 
             if (_embedSource != null)
             {
@@ -347,6 +384,47 @@ public class DesktopEmbedService
         workerWithoutDefView = without;
         workerWithDefView = with;
         return false;
+    }
+
+    private IntPtr EmbedWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_NCHITTEST && _hitTestRoot != null && _clickThroughElement != null)
+        {
+            int x = (short)(lParam.ToInt32() & 0xFFFF);
+            int y = (short)(lParam.ToInt32() >> 16);
+            var point = _hitTestRoot.PointFromScreen(new Point(x, y));
+
+            if (IsPointOverElement(_clickThroughElement, _hitTestRoot, point))
+            {
+                handled = false;
+                return IntPtr.Zero;
+            }
+
+            handled = true;
+            return new IntPtr(HTTRANSPARENT);
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private static bool IsPointOverElement(FrameworkElement element, FrameworkElement root, Point point)
+    {
+        if (element.Visibility != Visibility.Visible)
+        {
+            return false;
+        }
+
+        try
+        {
+            var transform = element.TransformToAncestor(root);
+            var topLeft = transform.Transform(new Point(0, 0));
+            var rect = new Rect(topLeft, new Size(element.ActualWidth, element.ActualHeight));
+            return rect.Contains(point);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void LogWindowRect(IntPtr hWnd, string name)
