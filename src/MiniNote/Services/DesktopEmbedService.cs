@@ -38,6 +38,7 @@ public class DesktopEmbedService
     private const int WS_EX_TOOLWINDOW = 0x00000080;
     private const int WS_EX_TRANSPARENT = 0x00000020;
     private const int WS_EX_LAYERED = 0x00080000;
+    private const int WS_EX_NOACTIVATE = 0x08000000;
 
     public bool IsEmbedded => _isEmbedded;
 
@@ -82,10 +83,11 @@ public class DesktopEmbedService
             {
                 Logger.Info($"EmbedToDesktop: Found SHELLDLL_DefView = 0x{_targetParent:X}");
 
-                // 设置工具窗口样式
+                // 设置窗口样式：工具窗口 + 点击穿透 + 不激活
                 int exStyle = Win32Api.GetWindowLong(_hwnd, GWL_EXSTYLE);
-                exStyle |= WS_EX_TOOLWINDOW;
+                exStyle |= WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE;
                 Win32Api.SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle);
+                Logger.Info("EmbedToDesktop: Set click-through style");
 
                 // 嵌入到 SHELLDLL_DefView
                 IntPtr result = Win32Api.SetParent(_hwnd, _targetParent);
@@ -94,7 +96,7 @@ public class DesktopEmbedService
                     MoveWindow(_hwnd, left, top, width, height, true);
                     ShowWindow(_hwnd, SW_SHOW);
                     _isEmbedded = true;
-                    Logger.Success("EmbedToDesktop: Embedded to SHELLDLL_DefView");
+                    Logger.Success("EmbedToDesktop: Embedded to SHELLDLL_DefView with click-through");
                     return true;
                 }
                 Logger.Warn($"EmbedToDesktop: SetParent to DefView failed");
@@ -169,10 +171,11 @@ public class DesktopEmbedService
             // 先脱离父窗口
             Win32Api.SetParent(hwnd, IntPtr.Zero);
 
-            // 移除工具窗口样式
+            // 移除嵌入模式的样式（工具窗口、点击穿透、不激活）
             int exStyle = Win32Api.GetWindowLong(hwnd, GWL_EXSTYLE);
-            exStyle &= ~WS_EX_TOOLWINDOW;
+            exStyle &= ~(WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE);
             Win32Api.SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
+            Logger.Info("DetachFromDesktop: Removed click-through style");
 
             // 使用保存的位置恢复
             MoveWindow(hwnd, _savedLeft, _savedTop, _savedWidth, _savedHeight, true);

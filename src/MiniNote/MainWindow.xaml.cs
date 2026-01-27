@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly DesktopEmbedService _embedService;
     private readonly DatabaseService _dbService;
     private readonly MainViewModel _viewModel;
+    private readonly TrayIconService _trayService;
     private AppSettings _settings = null!;
     private bool _isClosing = false;
 
@@ -24,9 +25,45 @@ public partial class MainWindow : Window
 
         _dbService = new DatabaseService();
         _embedService = new DesktopEmbedService();
+        _trayService = new TrayIconService();
         _viewModel = new MainViewModel(_dbService);
 
         DataContext = _viewModel;
+
+        // 初始化系统托盘
+        InitializeTrayIcon();
+    }
+
+    private void InitializeTrayIcon()
+    {
+        _trayService.Initialize();
+
+        _trayService.OnShowWindow += () =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                Show();
+                WindowState = WindowState.Normal;
+                Activate();
+            });
+        };
+
+        _trayService.OnToggleEmbed += () =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                BtnPin_Click(this, new RoutedEventArgs());
+            });
+        };
+
+        _trayService.OnExit += () =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _isClosing = true;
+                Close();
+            });
+        };
     }
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
@@ -55,8 +92,7 @@ public partial class MainWindow : Window
         if (embedded)
         {
             _settings.EmbedDesktop = true;
-            BtnPin.Content = "\uE77A";
-            BtnPin.ToolTip = "取消嵌入桌面";
+            SetEmbeddedMode(true);
             Logger.Success("Desktop embed successful");
         }
         else
@@ -100,11 +136,44 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 设置嵌入模式的 UI 状态
+    /// </summary>
+    private void SetEmbeddedMode(bool embedded)
+    {
+        if (embedded)
+        {
+            // 嵌入模式：隐藏最小化和关闭按钮，显示提示
+            BtnMinimize.Visibility = Visibility.Collapsed;
+            BtnClose.Visibility = Visibility.Collapsed;
+            BtnPin.Content = "\uE77A";
+            BtnPin.ToolTip = "取消嵌入桌面（点击无效，请使用托盘菜单）";
+
+            // 更新托盘菜单
+            _trayService.UpdateEmbedMenuText(true);
+            _trayService.ShowNotification("MiniNote", "已嵌入桌面，右键托盘图标可取消嵌入");
+        }
+        else
+        {
+            // 普通模式：显示所有按钮
+            BtnMinimize.Visibility = Visibility.Visible;
+            BtnClose.Visibility = Visibility.Visible;
+            BtnPin.Content = "\uE718";
+            BtnPin.ToolTip = "嵌入桌面";
+
+            // 更新托盘菜单
+            _trayService.UpdateEmbedMenuText(false);
+        }
+    }
+
     private async void Window_Closing(object sender, CancelEventArgs e)
     {
         if (_isClosing) return;
 
         Logger.Info("Window closing, saving settings...");
+
+        // 释放托盘图标
+        _trayService.Dispose();
 
         // 保存窗口位置和大小
         _settings.WindowX = Left;
@@ -122,6 +191,12 @@ public partial class MainWindow : Window
 
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // 嵌入模式下禁用拖拽
+        if (_embedService.IsEmbedded)
+        {
+            return;
+        }
+
         if (e.LeftButton == MouseButtonState.Pressed)
         {
             DragMove();
@@ -155,8 +230,7 @@ public partial class MainWindow : Window
             // 取消嵌入
             _embedService.DetachFromDesktop(this);
             _settings.EmbedDesktop = false;
-            BtnPin.Content = "\uE718";
-            BtnPin.ToolTip = "嵌入桌面";
+            SetEmbeddedMode(false);
             Logger.Info("Detached from desktop");
         }
         else
@@ -168,8 +242,7 @@ public partial class MainWindow : Window
             if (success)
             {
                 _settings.EmbedDesktop = true;
-                BtnPin.Content = "\uE77A";
-                BtnPin.ToolTip = "取消嵌入桌面";
+                SetEmbeddedMode(true);
                 Logger.Success("Desktop embed successful");
             }
             else
