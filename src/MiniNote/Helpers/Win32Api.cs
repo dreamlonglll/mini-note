@@ -8,6 +8,24 @@ namespace MiniNote.Helpers;
 /// </summary>
 public static class Win32Api
 {
+    #region 控制台相关
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool AllocConsole();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool FreeConsole();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr GetConsoleWindow();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool SetConsoleTitle(string lpConsoleTitle);
+
+    #endregion
+
     #region 窗口查找相关
 
     [DllImport("user32.dll", SetLastError = true)]
