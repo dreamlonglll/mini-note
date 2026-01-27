@@ -1,8 +1,10 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using MiniNote.Helpers;
 
 namespace MiniNote.Services;
@@ -15,12 +17,10 @@ public class DesktopEmbedService
     private IntPtr _targetParent = IntPtr.Zero;
     private bool _isEmbedded = false;
     private IntPtr _hwnd = IntPtr.Zero;
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    [DllImport("user32.dll")]
-    private static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
+    private HwndSource? _embedSource;
+    private FrameworkElement? _embedContent;
+    private RenderMode _savedRenderMode = RenderMode.Default;
+    private bool _renderModeChanged;
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
@@ -28,25 +28,18 @@ public class DesktopEmbedService
     [DllImport("user32.dll")]
     private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
 
-    [DllImport("user32.dll")]
-    private static extern bool EnumChildWindows(IntPtr hWndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
-    private const int SW_SHOW = 5;
-    private const int GWL_EXSTYLE = -20;
-    private const int WS_EX_TOOLWINDOW = 0x00000080;
-    private const int WS_EX_TRANSPARENT = 0x00000020;
-    private const int WS_EX_LAYERED = 0x00080000;
-    private const int WS_EX_NOACTIVATE = 0x08000000;
+    private const int WS_CHILD = 0x40000000;
+    private const int WS_VISIBLE = 0x10000000;
 
     public bool IsEmbedded => _isEmbedded;
 
-    // 保存的窗口位置
-    private int _savedLeft;
-    private int _savedTop;
-    private int _savedWidth;
-    private int _savedHeight;
+    // 保存的窗口位置（DIP）
+    private double _savedLeft;
+    private double _savedTop;
+    private double _savedWidth;
+    private double _savedHeight;
 
     /// <summary>
     /// 将窗口嵌入桌面
@@ -55,6 +48,11 @@ public class DesktopEmbedService
     {
         try
         {
+            if (_isEmbedded)
+            {
+                return true;
+            }
+
             _hwnd = new WindowInteropHelper(window).Handle;
             if (_hwnd == IntPtr.Zero)
             {
@@ -64,87 +62,36 @@ public class DesktopEmbedService
 
             Logger.Info($"EmbedToDesktop: hwnd = 0x{_hwnd:X}");
 
-            // 直接保存 WPF 坐标（WPF 和 Win32 对于顶级窗口使用相同的坐标系统）
-            _savedLeft = (int)window.Left;
-            _savedTop = (int)window.Top;
-            _savedWidth = (int)window.ActualWidth;
-            _savedHeight = (int)window.ActualHeight;
+            // 保存 WPF 坐标（DIP）
+            _savedLeft = window.Left;
+            _savedTop = window.Top;
+            _savedWidth = window.ActualWidth > 0 ? window.ActualWidth : window.Width;
+            _savedHeight = window.ActualHeight > 0 ? window.ActualHeight : window.Height;
 
-            int left = _savedLeft;
-            int top = _savedTop;
-            int width = _savedWidth;
-            int height = _savedHeight;
+            var dpi = VisualTreeHelper.GetDpi(window);
+            int left = (int)Math.Round(_savedLeft * dpi.DpiScaleX);
+            int top = (int)Math.Round(_savedTop * dpi.DpiScaleY);
+            int width = (int)Math.Round(_savedWidth * dpi.DpiScaleX);
+            int height = (int)Math.Round(_savedHeight * dpi.DpiScaleY);
 
-            Logger.Info($"EmbedToDesktop: Position = ({left}, {top}), Size = ({width}, {height})");
+            Logger.Info($"EmbedToDesktop: Position(DIP)=({_savedLeft:F0}, {_savedTop:F0}), Size(DIP)=({_savedWidth:F0}, {_savedHeight:F0})");
+            Logger.Info($"EmbedToDesktop: Position(PX)=({left}, {top}), Size(PX)=({width}, {height})");
 
-            // 方法1：尝试找到 SHELLDLL_DefView 并嵌入
-            _targetParent = FindShellDefView();
-            if (_targetParent != IntPtr.Zero)
+            _targetParent = GetDesktopWorkerW(out string hostType);
+            if (_targetParent == IntPtr.Zero)
             {
-                Logger.Info($"EmbedToDesktop: Found SHELLDLL_DefView = 0x{_targetParent:X}");
-
-                // 设置窗口样式：工具窗口（不显示在任务栏）
-                int exStyle = Win32Api.GetWindowLong(_hwnd, GWL_EXSTYLE);
-                exStyle |= WS_EX_TOOLWINDOW;
-                Win32Api.SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle);
-                Logger.Info("EmbedToDesktop: Set toolwindow style");
-
-                // 嵌入到 SHELLDLL_DefView
-                IntPtr result = Win32Api.SetParent(_hwnd, _targetParent);
-                if (result != IntPtr.Zero)
-                {
-                    MoveWindow(_hwnd, left, top, width, height, true);
-                    ShowWindow(_hwnd, SW_SHOW);
-                    _isEmbedded = true;
-                    Logger.Success("EmbedToDesktop: Embedded to SHELLDLL_DefView");
-                    return true;
-                }
-                Logger.Warn($"EmbedToDesktop: SetParent to DefView failed");
+                Logger.Error("EmbedToDesktop: WorkerW not found");
+                return false;
             }
 
-            // 方法2：尝试 WorkerW
-            _targetParent = GetWorkerW();
-            if (_targetParent != IntPtr.Zero)
+            Logger.Info($"EmbedToDesktop: Using {hostType} = 0x{_targetParent:X}");
+            LogWindowRect(_targetParent, $"HostParent({hostType})");
+            if (TryCreateEmbedHost(window, left, top, width, height, hostType))
             {
-                Logger.Info($"EmbedToDesktop: Using WorkerW = 0x{_targetParent:X}");
-
-                int exStyle = Win32Api.GetWindowLong(_hwnd, GWL_EXSTYLE);
-                exStyle |= WS_EX_TOOLWINDOW;
-                Win32Api.SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle);
-
-                IntPtr result = Win32Api.SetParent(_hwnd, _targetParent);
-                if (result != IntPtr.Zero)
-                {
-                    MoveWindow(_hwnd, left, top, width, height, true);
-                    ShowWindow(_hwnd, SW_SHOW);
-                    _isEmbedded = true;
-                    Logger.Success("EmbedToDesktop: Embedded to WorkerW");
-                    return true;
-                }
+                return true;
             }
 
-            // 方法3：尝试 Progman
-            IntPtr progman = Win32Api.FindWindow("Progman", null);
-            if (progman != IntPtr.Zero)
-            {
-                Logger.Info($"EmbedToDesktop: Trying Progman = 0x{progman:X}");
-
-                int exStyle = Win32Api.GetWindowLong(_hwnd, GWL_EXSTYLE);
-                exStyle |= WS_EX_TOOLWINDOW;
-                Win32Api.SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle);
-
-                IntPtr result = Win32Api.SetParent(_hwnd, progman);
-                if (result != IntPtr.Zero)
-                {
-                    MoveWindow(_hwnd, left, top, width, height, true);
-                    ShowWindow(_hwnd, SW_SHOW);
-                    _isEmbedded = true;
-                    Logger.Success("EmbedToDesktop: Embedded to Progman");
-                    return true;
-                }
-            }
-
-            Logger.Error("EmbedToDesktop: All methods failed");
+            Logger.Error("EmbedToDesktop: Create embed host failed");
             return false;
         }
         catch (Exception ex)
@@ -163,32 +110,37 @@ public class DesktopEmbedService
 
         try
         {
-            var hwnd = new WindowInteropHelper(window).Handle;
-            if (hwnd == IntPtr.Zero) return;
+            Logger.Info($"DetachFromDesktop: Saved position(DIP) = ({_savedLeft:F0}, {_savedTop:F0})");
 
-            Logger.Info($"DetachFromDesktop: Saved position = ({_savedLeft}, {_savedTop})");
+            if (_embedSource != null)
+            {
+                _embedSource.RootVisual = null;
+                _embedSource.Dispose();
+                _embedSource = null;
+            }
 
-            // 先脱离父窗口
-            Win32Api.SetParent(hwnd, IntPtr.Zero);
-
-            // 移除工具窗口样式
-            int exStyle = Win32Api.GetWindowLong(hwnd, GWL_EXSTYLE);
-            exStyle &= ~WS_EX_TOOLWINDOW;
-            Win32Api.SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
-            Logger.Info("DetachFromDesktop: Removed toolwindow style");
-
-            // 使用保存的位置恢复
-            MoveWindow(hwnd, _savedLeft, _savedTop, _savedWidth, _savedHeight, true);
-            ShowWindow(hwnd, SW_SHOW);
+            if (_embedContent != null)
+            {
+                window.Content = _embedContent;
+                _embedContent = null;
+            }
 
             // 更新 WPF 窗口属性
             window.Left = _savedLeft;
             window.Top = _savedTop;
             window.Width = _savedWidth;
             window.Height = _savedHeight;
+            if (window.WindowState == WindowState.Minimized)
+            {
+                window.WindowState = WindowState.Normal;
+            }
+
+            window.Show();
+            window.Activate();
 
             _isEmbedded = false;
             _targetParent = IntPtr.Zero;
+            RestoreRenderMode();
             Logger.Success("DetachFromDesktop: Complete");
         }
         catch (Exception ex)
@@ -198,91 +150,225 @@ public class DesktopEmbedService
     }
 
     /// <summary>
-    /// 查找 SHELLDLL_DefView 窗口
+    /// 获取桌面 WorkerW 窗口
     /// </summary>
-    private IntPtr FindShellDefView()
+    private IntPtr GetDesktopWorkerW(out string hostType)
     {
-        IntPtr defView = IntPtr.Zero;
-
-        // 首先在 Progman 中查找
-        IntPtr progman = Win32Api.FindWindow("Progman", null);
-        if (progman != IntPtr.Zero)
-        {
-            defView = Win32Api.FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", null);
-            if (defView != IntPtr.Zero)
-            {
-                Logger.Info($"FindShellDefView: Found in Progman = 0x{defView:X}");
-                return defView;
-            }
-        }
-
-        // 在所有 WorkerW 中查找
-        EnumWindows((hWnd, lParam) =>
-        {
-            var className = GetWindowClassName(hWnd);
-            if (className == "WorkerW")
-            {
-                var found = Win32Api.FindWindowEx(hWnd, IntPtr.Zero, "SHELLDLL_DefView", null);
-                if (found != IntPtr.Zero)
-                {
-                    defView = found;
-                    Logger.Info($"FindShellDefView: Found in WorkerW 0x{hWnd:X} = 0x{found:X}");
-                    return false;
-                }
-            }
-            return true;
-        }, IntPtr.Zero);
-
-        return defView;
-    }
-
-    /// <summary>
-    /// 获取 WorkerW 窗口
-    /// </summary>
-    private IntPtr GetWorkerW()
-    {
+        hostType = "Unknown";
         IntPtr progman = Win32Api.FindWindow("Progman", null);
         if (progman == IntPtr.Zero) return IntPtr.Zero;
 
         // 发送消息创建 WorkerW
         Win32Api.SendMessageTimeout(
             progman,
-            0x052C,
+            Win32Api.WM_SPAWN_WORKER,
             new IntPtr(0x0D),
             new IntPtr(0x01),
-            0x0000,
+            Win32Api.SMTO_NORMAL,
             1000,
             out _
         );
 
-        IntPtr workerW = IntPtr.Zero;
-        IntPtr defViewParent = IntPtr.Zero;
+        IntPtr workerWithoutDefView;
+        IntPtr workerWithDefView;
 
-        EnumWindows((hWnd, lParam) =>
+        bool found = TryFindWorkerW(out workerWithoutDefView, out workerWithDefView);
+        if (!found)
         {
-            var className = GetWindowClassName(hWnd);
-            if (className == "WorkerW")
-            {
-                var defView = Win32Api.FindWindowEx(hWnd, IntPtr.Zero, "SHELLDLL_DefView", null);
-                if (defView != IntPtr.Zero)
-                {
-                    defViewParent = hWnd;
-                    // 找到包含 DefView 的 WorkerW，获取下一个 WorkerW
-                    workerW = Win32Api.FindWindowEx(IntPtr.Zero, hWnd, "WorkerW", null);
-                    return false;
-                }
-            }
-            return true;
-        }, IntPtr.Zero);
+            // 兼容部分系统：尝试使用 0 参数再次触发 WorkerW
+            Win32Api.SendMessageTimeout(
+                progman,
+                Win32Api.WM_SPAWN_WORKER,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                Win32Api.SMTO_NORMAL,
+                1000,
+                out _
+            );
 
-        // 如果没找到独立的 WorkerW，创建一个新的或返回 defViewParent
-        if (workerW == IntPtr.Zero && defViewParent != IntPtr.Zero)
-        {
-            // 尝试使用包含 DefView 的 WorkerW
-            workerW = defViewParent;
+            TryFindWorkerW(out workerWithoutDefView, out workerWithDefView);
         }
 
-        return workerW;
+        if (workerWithDefView != IntPtr.Zero)
+        {
+            hostType = "WorkerW(DefView)";
+            return workerWithDefView;
+        }
+
+        if (workerWithoutDefView != IntPtr.Zero)
+        {
+            IntPtr defView = FindShellDefView();
+            if (defView != IntPtr.Zero)
+            {
+                hostType = "SHELLDLL_DefView";
+                return defView;
+            }
+
+            hostType = "WorkerW";
+            return workerWithoutDefView;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private IntPtr FindShellDefView()
+    {
+        IntPtr progman = Win32Api.FindWindow("Progman", null);
+        if (progman != IntPtr.Zero)
+        {
+            IntPtr defView = Win32Api.FindWindowEx(progman, IntPtr.Zero, "SHELLDLL_DefView", null);
+            if (defView != IntPtr.Zero)
+            {
+                return defView;
+            }
+        }
+
+        IntPtr workerW = Win32Api.FindWindowEx(IntPtr.Zero, IntPtr.Zero, "WorkerW", null);
+        while (workerW != IntPtr.Zero)
+        {
+            IntPtr defView = Win32Api.FindWindowEx(workerW, IntPtr.Zero, "SHELLDLL_DefView", null);
+            if (defView != IntPtr.Zero)
+            {
+                return defView;
+            }
+            workerW = Win32Api.FindWindowEx(IntPtr.Zero, workerW, "WorkerW", null);
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private bool TryCreateEmbedHost(Window window, int left, int top, int width, int height, string hostType)
+    {
+        if (window.Content is not FrameworkElement content)
+        {
+            Logger.Error("EmbedToDesktop: Window content is not FrameworkElement");
+            return false;
+        }
+
+        _savedRenderMode = RenderOptions.ProcessRenderMode;
+        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
+        _renderModeChanged = true;
+
+        content.DataContext = window.DataContext;
+        window.Content = null;
+
+        try
+        {
+            var parameters = new HwndSourceParameters("MiniNoteDesktopHost")
+            {
+                ParentWindow = _targetParent,
+                WindowStyle = WS_CHILD | WS_VISIBLE,
+                PositionX = left,
+                PositionY = top,
+                Width = width,
+                Height = height
+            };
+
+            _embedSource = new HwndSource(parameters);
+            _embedContent = content;
+            _embedSource.RootVisual = _embedContent;
+            _embedContent.Measure(new Size(_savedWidth, _savedHeight));
+            _embedContent.Arrange(new Rect(0, 0, _savedWidth, _savedHeight));
+            _embedContent.UpdateLayout();
+            LogWindowRect(_embedSource.Handle, "EmbedHost");
+            IntPtr zOrder = hostType == "SHELLDLL_DefView" ? IntPtr.Zero : Win32Api.HWND_BOTTOM;
+            Win32Api.SetWindowPos(
+                _embedSource.Handle,
+                zOrder,
+                0,
+                0,
+                0,
+                0,
+                Win32Api.SWP_NOMOVE | Win32Api.SWP_NOSIZE | Win32Api.SWP_NOACTIVATE
+            );
+
+            _isEmbedded = true;
+            Logger.Success($"EmbedToDesktop: Embedded to {hostType} (HwndSource)");
+            window.Hide();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("EmbedToDesktop: Create HwndSource failed", ex);
+            RestoreRenderMode();
+            window.Content = content;
+            _embedContent = null;
+            _embedSource?.Dispose();
+            _embedSource = null;
+            return false;
+        }
+    }
+
+    private bool TryFindWorkerW(out IntPtr workerWithoutDefView, out IntPtr workerWithDefView)
+    {
+        IntPtr without = IntPtr.Zero;
+        IntPtr with = IntPtr.Zero;
+
+        for (int i = 0; i < 5; i++)
+        {
+            EnumWindows((hWnd, lParam) =>
+            {
+                var className = GetWindowClassName(hWnd);
+                if (className == "WorkerW")
+                {
+                    var defView = Win32Api.FindWindowEx(hWnd, IntPtr.Zero, "SHELLDLL_DefView", null);
+                    if (defView != IntPtr.Zero)
+                    {
+                        with = hWnd;
+                    }
+                    else if (without == IntPtr.Zero)
+                    {
+                        without = hWnd;
+                    }
+                }
+
+                return !(without != IntPtr.Zero && with != IntPtr.Zero);
+            }, IntPtr.Zero);
+
+            if (without != IntPtr.Zero || with != IntPtr.Zero)
+            {
+                if (with != IntPtr.Zero)
+                {
+                    Logger.Info($"FindWorkerW: Found WorkerW (with DefView) = 0x{with:X}");
+                }
+                if (without != IntPtr.Zero)
+                {
+                    Logger.Info($"FindWorkerW: Found WorkerW (no DefView) = 0x{without:X}");
+                }
+
+                workerWithoutDefView = without;
+                workerWithDefView = with;
+                return true;
+            }
+
+            Thread.Sleep(50);
+        }
+
+        workerWithoutDefView = without;
+        workerWithDefView = with;
+        return false;
+    }
+
+    private void LogWindowRect(IntPtr hWnd, string name)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        if (Win32Api.GetWindowRect(hWnd, out var rect))
+        {
+            Logger.Info($"{name} Rect=({rect.Left}, {rect.Top})-({rect.Right}, {rect.Bottom})");
+        }
+        else
+        {
+            Logger.Warn($"{name} GetWindowRect failed");
+        }
+    }
+
+    private void RestoreRenderMode()
+    {
+        if (_renderModeChanged)
+        {
+            RenderOptions.ProcessRenderMode = _savedRenderMode;
+            _renderModeChanged = false;
+        }
     }
 
     private static string GetWindowClassName(IntPtr hWnd)

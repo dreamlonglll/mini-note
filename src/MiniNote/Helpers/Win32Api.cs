@@ -43,6 +43,18 @@ public static class Win32Api
     [DllImport("user32.dll")]
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
     #endregion
 
     #region 消息相关
@@ -107,6 +119,7 @@ public static class Win32Api
     public const uint SWP_NOSIZE = 0x0001;
     public const uint SWP_NOMOVE = 0x0002;
     public const uint SWP_NOACTIVATE = 0x0010;
+    public const uint SWP_FRAMECHANGED = 0x0020;
 
     #endregion
 }

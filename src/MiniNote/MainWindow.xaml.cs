@@ -45,6 +45,14 @@ public partial class MainWindow : Window
         {
             Dispatcher.Invoke(() =>
             {
+                if (_embedService.IsEmbedded)
+                {
+                    _embedService.DetachFromDesktop(this);
+                    _settings.EmbedDesktop = false;
+                    SetEmbeddedMode(false);
+                    _ = _dbService.SaveSettingsAsync(_settings);
+                }
+
                 Show();
                 WindowState = WindowState.Normal;
                 Activate();
@@ -153,21 +161,30 @@ public partial class MainWindow : Window
         // 安装点击穿透钩子
         InstallClickThroughHook();
 
-        // 尝试桌面嵌入
-        Logger.Info("Attempting desktop embed...");
-        bool embedded = _embedService.EmbedToDesktop(this);
-
-        if (embedded)
+        if (_settings.EmbedDesktop)
         {
-            _settings.EmbedDesktop = true;
-            SetEmbeddedMode(true);
-            Logger.Success("Desktop embed successful");
+            // 尝试桌面嵌入
+            Logger.Info("Attempting desktop embed...");
+            bool embedded = _embedService.EmbedToDesktop(this);
+
+            if (embedded)
+            {
+                SetEmbeddedMode(true);
+                Logger.Success("Desktop embed successful");
+            }
+            else
+            {
+                Logger.Warn("Desktop embed failed");
+                _settings.EmbedDesktop = false;
+                SetEmbeddedMode(false);
+                BtnPin.ToolTip = "嵌入桌面（当前不可用）";
+                await _dbService.SaveSettingsAsync(_settings);
+            }
         }
         else
         {
-            Logger.Warn("Desktop embed failed");
-            BtnPin.Content = "\uE718";
-            BtnPin.ToolTip = "嵌入桌面（当前不可用）";
+            Logger.Info("EmbedDesktop disabled, skipping embed");
+            SetEmbeddedMode(false);
         }
 
         // 加载待办数据
@@ -317,7 +334,7 @@ public partial class MainWindow : Window
             {
                 Logger.Error("Desktop embed failed");
                 MessageBox.Show(
-                    "桌面嵌入失败。\n\n可能的原因：\n1. Windows 11 安全限制\n2. 壁纸软件冲突\n\n建议：尝试关闭壁纸软件后重试。",
+                    "桌面嵌入失败。\n\n可能的原因：\n1. Explorer 未创建 WorkerW 桌面层\n2. Windows 11 安全限制\n3. 壁纸软件冲突\n\n建议：\n- 尝试重启资源管理器后重试\n- 关闭壁纸/桌面美化软件后重试",
                     "嵌入失败",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
