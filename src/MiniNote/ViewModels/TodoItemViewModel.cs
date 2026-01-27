@@ -34,6 +34,14 @@ public partial class TodoItemViewModel : ObservableObject
     {
         _model.IsCompleted = value;
         _model.UpdatedAt = DateTime.Now;
+        // 注意：不在这里触发事件，避免循环调用
+    }
+
+    /// <summary>
+    /// 通知完成状态变更（由 View 调用）
+    /// </summary>
+    public void NotifyCompletedChanged()
+    {
         CompletedChanged?.Invoke(this);
     }
 

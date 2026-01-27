@@ -44,4 +44,9 @@ public class AppSettings
     /// 透明度 (0.0 - 1.0)
     /// </summary>
     public double Opacity { get; set; } = 0.85;
+
+    /// <summary>
+    /// 是否使用深色主题
+    /// </summary>
+    public bool IsDarkTheme { get; set; } = true;
 }

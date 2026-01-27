@@ -12,13 +12,11 @@ namespace MiniNote.Services;
 /// </summary>
 public class NotificationService : IDisposable
 {
-    private readonly DatabaseService _dbService;
     private CancellationTokenSource? _cts;
     private Task? _reminderTask;
 
-    public NotificationService(DatabaseService dbService)
+    public NotificationService()
     {
-        _dbService = dbService;
     }
 
     /// <summary>
@@ -68,7 +66,9 @@ public class NotificationService : IDisposable
     /// </summary>
     private async Task CheckAndSendReminders()
     {
-        var dueReminders = await _dbService.GetPendingRemindersAsync();
+        // 使用独立的 DatabaseService 实例避免并发问题
+        var dbService = new DatabaseService();
+        var dueReminders = await dbService.GetPendingRemindersAsync();
 
         foreach (var todo in dueReminders)
         {
@@ -76,7 +76,7 @@ public class NotificationService : IDisposable
 
             // 标记为已提醒
             todo.IsReminded = true;
-            await _dbService.UpdateTodoAsync(todo);
+            await dbService.UpdateTodoAsync(todo);
             Logger.Info($"NotificationService: Sent reminder for todo #{todo.Id}");
         }
     }

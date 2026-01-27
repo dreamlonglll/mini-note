@@ -154,6 +154,7 @@ public class DatabaseService
             existing.AutoStart = settings.AutoStart;
             existing.EmbedDesktop = settings.EmbedDesktop;
             existing.Opacity = settings.Opacity;
+            existing.IsDarkTheme = settings.IsDarkTheme;
         }
         else
         {

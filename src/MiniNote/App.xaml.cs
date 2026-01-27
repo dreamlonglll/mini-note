@@ -21,6 +21,9 @@ public partial class App : Application
         Logger.InitializeConsole();
         Logger.Info("Application starting...");
 
+        // 执行数据库迁移
+        DatabaseMigrationService.Migrate();
+
         // 初始化数据库服务（用于通知激活处理）
         _dbService = new DatabaseService();
 

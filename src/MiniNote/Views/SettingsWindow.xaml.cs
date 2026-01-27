@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
+using MaterialDesignThemes.Wpf;
 using MiniNote.Models;
 using MiniNote.Services;
 
@@ -12,6 +13,7 @@ public partial class SettingsWindow : Window
     private bool _isInitializing = true;
 
     public event EventHandler<AppSettings>? SettingsChanged;
+    public event EventHandler<bool>? ThemeChanged;
 
     public SettingsWindow()
     {
@@ -30,6 +32,7 @@ public partial class SettingsWindow : Window
         TglAutoStart.IsChecked = AutoStartService.IsAutoStartEnabled();
         TglEmbedDesktop.IsChecked = settings.EmbedDesktop;
         SldOpacity.Value = settings.Opacity;
+        TglDarkTheme.IsChecked = settings.IsDarkTheme;
 
         _isInitializing = false;
     }
@@ -70,6 +73,23 @@ public partial class SettingsWindow : Window
         if (_isInitializing) return;
 
         _settings.Opacity = SldOpacity.Value;
+        SettingsChanged?.Invoke(this, _settings);
+    }
+
+    private void TglDarkTheme_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+
+        var isDark = TglDarkTheme.IsChecked ?? true;
+        _settings.IsDarkTheme = isDark;
+        
+        // 切换 Material Design 主题
+        var paletteHelper = new PaletteHelper();
+        var theme = paletteHelper.GetTheme();
+        theme.SetBaseTheme(isDark ? BaseTheme.Dark : BaseTheme.Light);
+        paletteHelper.SetTheme(theme);
+
+        ThemeChanged?.Invoke(this, isDark);
         SettingsChanged?.Invoke(this, _settings);
     }
 }

@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -29,10 +28,6 @@ public partial class MainWindow : Window
     private Brush? _normalBorderBrush;
     private Effect? _normalEffect;
 
-    // 提醒选择器弹出窗口
-    private Popup? _reminderPopup;
-    private ReminderPicker? _reminderPicker;
-    private TodoItemViewModel? _currentReminderTodo;
 
     public MainWindow()
     {
@@ -46,16 +41,13 @@ public partial class MainWindow : Window
         _dbService = new DatabaseService();
         _embedService = new DesktopEmbedService();
         _trayService = new TrayIconService();
-        _notificationService = new NotificationService(_dbService);
+        _notificationService = new NotificationService();
         _viewModel = new MainViewModel(_dbService);
 
         DataContext = _viewModel;
 
         // 初始化系统托盘
         InitializeTrayIcon();
-
-        // 初始化提醒选择器
-        InitializeReminderPicker();
     }
 
     private void InitializeTrayIcon()
@@ -98,54 +90,29 @@ public partial class MainWindow : Window
         };
     }
 
-    private void InitializeReminderPicker()
+    private async void ShowReminderDialog(TodoItemViewModel todoVm)
     {
-        _reminderPicker = new ReminderPicker();
-        _reminderPicker.ReminderSelected += OnReminderSelected;
-        _reminderPicker.Cancelled += OnReminderCancelled;
-
-        _reminderPopup = new Popup
+        var dialog = new ReminderDialog
         {
-            Child = _reminderPicker,
-            StaysOpen = false,
-            AllowsTransparency = true,
-            PlacementTarget = this,
-            Placement = PlacementMode.Center
+            Owner = this
         };
-    }
+        dialog.SetExistingReminder(todoVm.ReminderTime);
 
-    private async void OnReminderSelected(object? sender, DateTime? reminderTime)
-    {
-        if (_currentReminderTodo != null)
+        if (dialog.ShowDialog() == true)
         {
-            _currentReminderTodo.SetReminderTime(reminderTime);
-            await _dbService.UpdateTodoAsync(_currentReminderTodo.Model);
-
-            if (reminderTime.HasValue)
+            if (dialog.WasCleared)
             {
-                Logger.Info($"Set reminder for todo #{_currentReminderTodo.Id} at {reminderTime.Value}");
+                todoVm.SetReminderTime(null);
+                await _dbService.UpdateTodoAsync(todoVm.Model);
+                Logger.Info($"Cleared reminder for todo #{todoVm.Id}");
             }
-            else
+            else if (dialog.Result.HasValue)
             {
-                Logger.Info($"Cleared reminder for todo #{_currentReminderTodo.Id}");
+                todoVm.SetReminderTime(dialog.Result);
+                await _dbService.UpdateTodoAsync(todoVm.Model);
+                Logger.Info($"Set reminder for todo #{todoVm.Id} at {dialog.Result.Value}");
             }
         }
-
-        _reminderPopup!.IsOpen = false;
-        _currentReminderTodo = null;
-    }
-
-    private void OnReminderCancelled(object? sender, EventArgs e)
-    {
-        _reminderPopup!.IsOpen = false;
-        _currentReminderTodo = null;
-    }
-
-    private void ShowReminderPicker(TodoItemViewModel todoVm)
-    {
-        _currentReminderTodo = todoVm;
-        _reminderPicker!.SetExistingReminder(todoVm.ReminderTime);
-        _reminderPopup!.IsOpen = true;
     }
 
     /// <summary>
@@ -266,14 +233,12 @@ public partial class MainWindow : Window
         await _viewModel.InitializeAsync();
         Logger.Info($"Loaded {_viewModel.TotalCount} todo items");
 
-        // 注册提醒事件
+        // 注册事件
         foreach (var todoVm in _viewModel.TodoItems)
         {
             todoVm.ReminderRequested += OnTodoReminderRequested;
+            todoVm.EditRequested += OnTodoEditRequested;
         }
-
-        // 更新标题栏计数
-        UpdatePendingCount();
 
         // 监听计数变化
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -291,13 +256,47 @@ public partial class MainWindow : Window
             foreach (TodoItemViewModel todoVm in e.NewItems)
             {
                 todoVm.ReminderRequested += OnTodoReminderRequested;
+                todoVm.EditRequested += OnTodoEditRequested;
             }
         }
     }
 
     private void OnTodoReminderRequested(TodoItemViewModel todoVm)
     {
-        ShowReminderPicker(todoVm);
+        ShowReminderDialog(todoVm);
+    }
+
+    private async void OnTodoEditRequested(TodoItemViewModel todoVm)
+    {
+        var dialog = new EditTodoDialog
+        {
+            Owner = this
+        };
+        dialog.SetTodoItem(todoVm);
+
+        if (dialog.ShowDialog() == true)
+        {
+            if (dialog.DeleteRequested)
+            {
+                // 删除待办
+                await _dbService.DeleteTodoAsync(todoVm.Id);
+                _viewModel.TodoItems.Remove(todoVm);
+                _viewModel.UpdateCountsPublic();
+                Logger.Info($"Deleted todo #{todoVm.Id}");
+            }
+            else
+            {
+                // 处理提醒时间变更
+                if (dialog.ReminderTimeChanged)
+                {
+                    todoVm.SetReminderTime(dialog.NewReminderTime);
+                }
+                
+                // 更新待办
+                await _dbService.UpdateTodoAsync(todoVm.Model);
+                Logger.Info($"Updated todo #{todoVm.Id}");
+            }
+        }
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -305,19 +304,7 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainViewModel.PendingCount) ||
             e.PropertyName == nameof(MainViewModel.TotalCount))
         {
-            UpdatePendingCount();
-        }
-    }
-
-    private void UpdatePendingCount()
-    {
-        if (_viewModel.TotalCount > 0)
-        {
-            TxtPendingCount.Text = $"({_viewModel.PendingCount} 项待办)";
-        }
-        else
-        {
-            TxtPendingCount.Text = "";
+            // 数据更新时刷新界面状态
         }
     }
 
@@ -333,10 +320,11 @@ public partial class MainWindow : Window
             MainBorder.Effect = null;
             _embedService.EnableEmbedClickThrough(MainBorder, BtnPin);
 
-            // 嵌入模式：隐藏最小化和关闭按钮，显示提示
+            // 嵌入模式：隐藏最小化和关闭按钮、悬浮按钮，显示提示
             BtnMinimize.Visibility = Visibility.Collapsed;
             BtnClose.Visibility = Visibility.Collapsed;
-            BtnPin.Content = "\uE77A";
+            BtnAddFloat.Visibility = Visibility.Collapsed;
+            IconPin.Kind = MaterialDesignThemes.Wpf.PackIconKind.PinOff;
             BtnPin.ToolTip = "取消嵌入桌面";
 
             // 更新托盘菜单
@@ -359,7 +347,8 @@ public partial class MainWindow : Window
             // 普通模式：显示所有按钮
             BtnMinimize.Visibility = Visibility.Visible;
             BtnClose.Visibility = Visibility.Visible;
-            BtnPin.Content = "\uE718";
+            BtnAddFloat.Visibility = Visibility.Visible;
+            IconPin.Kind = MaterialDesignThemes.Wpf.PackIconKind.PinOutline;
             BtnPin.ToolTip = "嵌入桌面";
 
             // 更新托盘菜单
@@ -408,22 +397,66 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void TxtNewTodo_KeyDown(object sender, KeyEventArgs e)
+    private async void BtnAddFloat_Click(object sender, RoutedEventArgs e)
     {
-        if (e.Key == Key.Enter && !string.IsNullOrWhiteSpace(_viewModel.NewTodoContent))
+        Logger.Info("Opening add todo dialog");
+
+        var dialog = new AddTodoDialog
         {
-            Logger.Info($"Adding todo: {_viewModel.NewTodoContent}");
-            await _viewModel.AddTodoCommand.ExecuteAsync(null);
-            TxtNewTodo.Focus();
+            Owner = this
+        };
+
+        if (dialog.ShowDialog() == true && dialog.Result != null)
+        {
+            var todo = dialog.Result;
+            await _dbService.AddTodoAsync(todo);
+
+            // 加载分类信息
+            todo.Category = _viewModel.SelectedCategory;
+
+            var vm = CreateTodoViewModelWithEvents(todo);
+
+            // 插入到合适的位置
+            int insertIndex = 0;
+            for (int i = 0; i < _viewModel.TodoItems.Count; i++)
+            {
+                if (_viewModel.TodoItems[i].IsCompleted)
+                {
+                    insertIndex = i;
+                    break;
+                }
+                if (_viewModel.TodoItems[i].Priority < todo.Priority)
+                {
+                    insertIndex = i;
+                    break;
+                }
+                insertIndex = i + 1;
+            }
+
+            _viewModel.TodoItems.Insert(insertIndex, vm);
+            _viewModel.UpdateCountsPublic();
+
+            Logger.Info($"Added todo: {todo.Content}");
         }
     }
 
-    private void Priority_Checked(object sender, RoutedEventArgs e)
+    private TodoItemViewModel CreateTodoViewModelWithEvents(Models.TodoItem todo)
     {
-        if (sender is RadioButton rb && rb.Tag is string tagStr && int.TryParse(tagStr, out int priority))
+        var vm = new TodoItemViewModel(todo);
+        vm.ReminderRequested += OnTodoReminderRequested;
+        vm.EditRequested += OnTodoEditRequested;
+        vm.CompletedChanged += async (sender) =>
         {
-            _viewModel.NewTodoPriority = priority;
-        }
+            await _dbService.UpdateTodoAsync(sender.Model);
+            _viewModel.UpdateCountsPublic();
+        };
+        vm.DeleteRequested += async (sender) =>
+        {
+            await _dbService.DeleteTodoAsync(sender.Id);
+            _viewModel.TodoItems.Remove(sender);
+            _viewModel.UpdateCountsPublic();
+        };
+        return vm;
     }
 
     private async void BtnPin_Click(object sender, RoutedEventArgs e)

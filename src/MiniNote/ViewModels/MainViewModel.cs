@@ -251,4 +251,12 @@ public partial class MainViewModel : ObservableObject
         TotalCount = TodoItems.Count;
         CompletedCount = TodoItems.Count(t => t.IsCompleted);
     }
+
+    /// <summary>
+    /// 公开的更新计数方法
+    /// </summary>
+    public void UpdateCountsPublic()
+    {
+        UpdateCounts();
+    }
 }
