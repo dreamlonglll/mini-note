@@ -54,24 +54,7 @@ public partial class MainWindow : Window
     {
         _trayService.Initialize();
 
-        _trayService.OnShowWindow += () =>
-        {
-            Dispatcher.Invoke(() =>
-            {
-                if (_embedService.IsEmbedded)
-                {
-                    _embedService.DetachFromDesktop(this);
-                    _settings.EmbedDesktop = false;
-                    SetEmbeddedMode(false);
-                    _ = _dbService.SaveSettingsAsync(_settings);
-                }
-
-                Show();
-                WindowState = WindowState.Normal;
-                Activate();
-            });
-        };
-
+        // 固定/取消固定
         _trayService.OnToggleEmbed += () =>
         {
             Dispatcher.Invoke(() =>
@@ -80,6 +63,17 @@ public partial class MainWindow : Window
             });
         };
 
+        // 添加待办项
+        _trayService.OnAddTodo += () =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                // 打开添加待办对话框
+                BtnAddFloat_Click(this, new RoutedEventArgs());
+            });
+        };
+
+        // 退出
         _trayService.OnExit += () =>
         {
             Dispatcher.Invoke(() =>

@@ -14,9 +14,11 @@ public class TrayIconService : IDisposable
     private NotifyIcon? _notifyIcon;
     private ContextMenuStrip? _contextMenu;
 
-    public event Action? OnShowWindow;
     public event Action? OnToggleEmbed;
+    public event Action? OnAddTodo;
     public event Action? OnExit;
+
+    private ToolStripMenuItem? _embedMenuItem;
 
     public void Initialize()
     {
@@ -25,16 +27,19 @@ public class TrayIconService : IDisposable
         // 创建右键菜单
         _contextMenu = new ContextMenuStrip();
 
-        var showItem = new ToolStripMenuItem("显示窗口");
-        showItem.Click += (s, e) => OnShowWindow?.Invoke();
-        _contextMenu.Items.Add(showItem);
+        // 固定/取消固定
+        _embedMenuItem = new ToolStripMenuItem("固定到桌面");
+        _embedMenuItem.Click += (s, e) => OnToggleEmbed?.Invoke();
+        _contextMenu.Items.Add(_embedMenuItem);
 
-        var toggleItem = new ToolStripMenuItem("切换嵌入模式");
-        toggleItem.Click += (s, e) => OnToggleEmbed?.Invoke();
-        _contextMenu.Items.Add(toggleItem);
+        // 添加待办项
+        var addTodoItem = new ToolStripMenuItem("添加待办项");
+        addTodoItem.Click += (s, e) => OnAddTodo?.Invoke();
+        _contextMenu.Items.Add(addTodoItem);
 
         _contextMenu.Items.Add(new ToolStripSeparator());
 
+        // 退出
         var exitItem = new ToolStripMenuItem("退出");
         exitItem.Click += (s, e) => OnExit?.Invoke();
         _contextMenu.Items.Add(exitItem);
@@ -48,8 +53,8 @@ public class TrayIconService : IDisposable
             ContextMenuStrip = _contextMenu
         };
 
-        // 双击显示窗口
-        _notifyIcon.DoubleClick += (s, e) => OnShowWindow?.Invoke();
+        // 双击固定/取消固定
+        _notifyIcon.DoubleClick += (s, e) => OnToggleEmbed?.Invoke();
 
         Logger.Success("TrayIconService: Initialized");
     }
@@ -67,9 +72,9 @@ public class TrayIconService : IDisposable
     /// </summary>
     public void UpdateEmbedMenuText(bool isEmbedded)
     {
-        if (_contextMenu?.Items[1] is ToolStripMenuItem item)
+        if (_embedMenuItem != null)
         {
-            item.Text = isEmbedded ? "取消嵌入桌面" : "嵌入桌面";
+            _embedMenuItem.Text = isEmbedded ? "取消固定" : "固定到桌面";
         }
     }
 
