@@ -1,7 +1,10 @@
+using System;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using MiniNote.Helpers;
 using MiniNote.Models;
 using MiniNote.Services;
@@ -66,6 +69,68 @@ public partial class MainWindow : Window
         };
     }
 
+    /// <summary>
+    /// 安装 WndProc 钩子用于选择性点击穿透
+    /// </summary>
+    private void InstallClickThroughHook()
+    {
+        var hwndSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+        hwndSource?.AddHook(WndProc);
+        Logger.Info("Installed click-through hook");
+    }
+
+    private const int WM_NCHITTEST = 0x0084;
+    private const int HTTRANSPARENT = -1;
+    private const int HTCLIENT = 1;
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        // 只在嵌入模式下处理点击穿透
+        if (msg == WM_NCHITTEST && _embedService.IsEmbedded)
+        {
+            // 获取鼠标位置
+            int x = (short)(lParam.ToInt32() & 0xFFFF);
+            int y = (short)(lParam.ToInt32() >> 16);
+
+            // 转换为窗口坐标
+            var point = PointFromScreen(new Point(x, y));
+
+            // 检查是否点击在取消固定按钮上
+            if (IsPointOverButton(BtnPin, point))
+            {
+                // 按钮区域可点击
+                handled = false;
+                return IntPtr.Zero;
+            }
+
+            // 其他区域穿透
+            handled = true;
+            return new IntPtr(HTTRANSPARENT);
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private bool IsPointOverButton(Button button, Point point)
+    {
+        if (button.Visibility != Visibility.Visible)
+            return false;
+
+        try
+        {
+            // 获取按钮相对于窗口的位置和大小
+            var transform = button.TransformToAncestor(this);
+            var buttonTopLeft = transform.Transform(new Point(0, 0));
+            var buttonRect = new Rect(buttonTopLeft, new Size(button.ActualWidth, button.ActualHeight));
+
+            return buttonRect.Contains(point);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         Logger.Info("Window_Loaded started");
@@ -84,6 +149,9 @@ public partial class MainWindow : Window
         bool acrylicEnabled = AcrylicHelper.EnableAcrylic(this);
         AcrylicHelper.SetDarkMode(this, true);
         Logger.Info($"Acrylic effect: {(acrylicEnabled ? "enabled" : "not available")}");
+
+        // 安装点击穿透钩子
+        InstallClickThroughHook();
 
         // 尝试桌面嵌入
         Logger.Info("Attempting desktop embed...");
