@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -11,6 +12,7 @@ using MiniNote.Helpers;
 using MiniNote.Models;
 using MiniNote.Services;
 using MiniNote.ViewModels;
+using MiniNote.Views;
 
 namespace MiniNote;
 
@@ -20,11 +22,17 @@ public partial class MainWindow : Window
     private readonly DatabaseService _dbService;
     private readonly MainViewModel _viewModel;
     private readonly TrayIconService _trayService;
+    private readonly NotificationService _notificationService;
     private AppSettings _settings = null!;
     private bool _isClosing = false;
     private Brush? _normalBackground;
     private Brush? _normalBorderBrush;
     private Effect? _normalEffect;
+
+    // 提醒选择器弹出窗口
+    private Popup? _reminderPopup;
+    private ReminderPicker? _reminderPicker;
+    private TodoItemViewModel? _currentReminderTodo;
 
     public MainWindow()
     {
@@ -38,12 +46,16 @@ public partial class MainWindow : Window
         _dbService = new DatabaseService();
         _embedService = new DesktopEmbedService();
         _trayService = new TrayIconService();
+        _notificationService = new NotificationService(_dbService);
         _viewModel = new MainViewModel(_dbService);
 
         DataContext = _viewModel;
 
         // 初始化系统托盘
         InitializeTrayIcon();
+
+        // 初始化提醒选择器
+        InitializeReminderPicker();
     }
 
     private void InitializeTrayIcon()
@@ -84,6 +96,56 @@ public partial class MainWindow : Window
                 Close();
             });
         };
+    }
+
+    private void InitializeReminderPicker()
+    {
+        _reminderPicker = new ReminderPicker();
+        _reminderPicker.ReminderSelected += OnReminderSelected;
+        _reminderPicker.Cancelled += OnReminderCancelled;
+
+        _reminderPopup = new Popup
+        {
+            Child = _reminderPicker,
+            StaysOpen = false,
+            AllowsTransparency = true,
+            PlacementTarget = this,
+            Placement = PlacementMode.Center
+        };
+    }
+
+    private async void OnReminderSelected(object? sender, DateTime? reminderTime)
+    {
+        if (_currentReminderTodo != null)
+        {
+            _currentReminderTodo.SetReminderTime(reminderTime);
+            await _dbService.UpdateTodoAsync(_currentReminderTodo.Model);
+
+            if (reminderTime.HasValue)
+            {
+                Logger.Info($"Set reminder for todo #{_currentReminderTodo.Id} at {reminderTime.Value}");
+            }
+            else
+            {
+                Logger.Info($"Cleared reminder for todo #{_currentReminderTodo.Id}");
+            }
+        }
+
+        _reminderPopup!.IsOpen = false;
+        _currentReminderTodo = null;
+    }
+
+    private void OnReminderCancelled(object? sender, EventArgs e)
+    {
+        _reminderPopup!.IsOpen = false;
+        _currentReminderTodo = null;
+    }
+
+    private void ShowReminderPicker(TodoItemViewModel todoVm)
+    {
+        _currentReminderTodo = todoVm;
+        _reminderPicker!.SetExistingReminder(todoVm.ReminderTime);
+        _reminderPopup!.IsOpen = true;
     }
 
     /// <summary>
@@ -196,9 +258,19 @@ public partial class MainWindow : Window
             SetEmbeddedMode(false);
         }
 
+        // 启动提醒服务
+        _notificationService.StartReminderService();
+        Logger.Info("Notification service started");
+
         // 加载待办数据
         await _viewModel.InitializeAsync();
         Logger.Info($"Loaded {_viewModel.TotalCount} todo items");
+
+        // 注册提醒事件
+        foreach (var todoVm in _viewModel.TodoItems)
+        {
+            todoVm.ReminderRequested += OnTodoReminderRequested;
+        }
 
         // 更新标题栏计数
         UpdatePendingCount();
@@ -206,7 +278,26 @@ public partial class MainWindow : Window
         // 监听计数变化
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
 
+        // 监听待办项集合变化
+        _viewModel.TodoItems.CollectionChanged += TodoItems_CollectionChanged;
+
         Logger.Success("Window_Loaded completed");
+    }
+
+    private void TodoItems_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+        {
+            foreach (TodoItemViewModel todoVm in e.NewItems)
+            {
+                todoVm.ReminderRequested += OnTodoReminderRequested;
+            }
+        }
+    }
+
+    private void OnTodoReminderRequested(TodoItemViewModel todoVm)
+    {
+        ShowReminderPicker(todoVm);
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -284,6 +375,10 @@ public partial class MainWindow : Window
 
         // 释放托盘图标
         _trayService.Dispose();
+
+        // 停止提醒服务
+        _notificationService.StopReminderService();
+        _notificationService.Dispose();
 
         // 保存窗口位置和大小
         _settings.WindowX = Left;
@@ -380,5 +475,49 @@ public partial class MainWindow : Window
         Logger.Info("Close button clicked");
         _isClosing = true;
         Close();
+    }
+
+    private void BtnSettings_Click(object sender, RoutedEventArgs e)
+    {
+        Logger.Info("Opening settings window");
+
+        var settingsWindow = new SettingsWindow
+        {
+            Owner = this
+        };
+
+        settingsWindow.Initialize(_settings);
+
+        settingsWindow.SettingsChanged += async (s, newSettings) =>
+        {
+            _settings = newSettings;
+            Opacity = newSettings.Opacity;
+
+            // 处理嵌入桌面设置变化
+            if (newSettings.EmbedDesktop != _embedService.IsEmbedded)
+            {
+                if (newSettings.EmbedDesktop)
+                {
+                    bool success = _embedService.EmbedToDesktop(this);
+                    if (success)
+                    {
+                        SetEmbeddedMode(true);
+                    }
+                    else
+                    {
+                        _settings.EmbedDesktop = false;
+                    }
+                }
+                else
+                {
+                    _embedService.DetachFromDesktop(this);
+                    SetEmbeddedMode(false);
+                }
+            }
+
+            await _dbService.SaveSettingsAsync(_settings);
+        };
+
+        settingsWindow.ShowDialog();
     }
 }

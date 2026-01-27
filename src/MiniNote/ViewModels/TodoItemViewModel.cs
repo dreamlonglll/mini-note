@@ -95,6 +95,8 @@ public partial class TodoItemViewModel : ObservableObject
     public event Action<TodoItemViewModel>? CompletedChanged;
     public event Action<TodoItemViewModel>? DeleteRequested;
     public event Action<TodoItemViewModel>? EditRequested;
+    public event Action<TodoItemViewModel>? ReminderRequested;
+    public event Action<TodoItemViewModel, DateTime?>? ReminderChanged;
 
     [RelayCommand]
     private void Delete()
@@ -112,5 +114,25 @@ public partial class TodoItemViewModel : ObservableObject
     private void ToggleComplete()
     {
         IsCompleted = !IsCompleted;
+    }
+
+    [RelayCommand]
+    private void SetReminder()
+    {
+        ReminderRequested?.Invoke(this);
+    }
+
+    /// <summary>
+    /// 设置提醒时间
+    /// </summary>
+    public void SetReminderTime(DateTime? time)
+    {
+        ReminderTime = time;
+        _model.ReminderTime = time;
+        _model.IsReminded = false;
+        _model.UpdatedAt = DateTime.Now;
+        OnPropertyChanged(nameof(HasReminder));
+        OnPropertyChanged(nameof(ReminderTimeText));
+        ReminderChanged?.Invoke(this, time);
     }
 }

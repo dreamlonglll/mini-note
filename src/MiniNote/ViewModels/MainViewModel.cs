@@ -207,6 +207,27 @@ public partial class MainViewModel : ObservableObject
         NewTodoPriority = priority;
     }
 
+    [RelayCommand]
+    private async Task SetReminderAsync(TodoItemViewModel? todoVm)
+    {
+        if (todoVm == null || !todoVm.ReminderTime.HasValue)
+            return;
+
+        todoVm.Model.ReminderTime = todoVm.ReminderTime;
+        todoVm.Model.IsReminded = false;
+        await _dbService.UpdateTodoAsync(todoVm.Model);
+    }
+
+    [RelayCommand]
+    private async Task ClearReminderAsync(TodoItemViewModel? todoVm)
+    {
+        if (todoVm == null) return;
+
+        todoVm.ReminderTime = null;
+        todoVm.Model.ReminderTime = null;
+        await _dbService.UpdateTodoAsync(todoVm.Model);
+    }
+
     private TodoItemViewModel CreateTodoViewModel(TodoItem todo)
     {
         var vm = new TodoItemViewModel(todo);

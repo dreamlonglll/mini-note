@@ -16,6 +16,7 @@
         <converters:ZeroToVisibleConverter x:Key="ZeroToVisibleConverter"/>
         <converters:StringToColorBrushConverter x:Key="StringToColorBrushConverter"/>
         <converters:PriorityToColorConverter x:Key="PriorityToColorConverter"/>
+        <converters:BoolToReminderColorConverter x:Key="BoolToReminderColorConverter"/>
 
         <!-- 颜色与基础样式 -->
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1E2636" Opacity="0.92"/>
@@ -208,6 +209,251 @@
                                 </Track.Thumb>
                             </Track>
                         </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 次要按钮样式 -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#80FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#20FFFFFF"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#30FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 快捷提醒按钮样式 -->
+        <Style x:Key="QuickReminderButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#30FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#50FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#60FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 开关按钮样式 -->
+        <Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="border"
+                                Background="#40FFFFFF"
+                                CornerRadius="11"
+                                BorderThickness="0"
+                                Cursor="Hand">
+                            <Ellipse x:Name="thumb"
+                                     Width="18"
+                                     Height="18"
+                                     Fill="White"
+                                     HorizontalAlignment="Left"
+                                     Margin="2,0,0,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentBrush}"/>
+                                <Setter TargetName="thumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="thumb" Property="Margin" Value="0,0,2,0"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 时间输入框样式 -->
+        <Style x:Key="TimeTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="#30FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#40FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- DatePicker 样式 -->
+        <Style x:Key="ModernDatePickerStyle" TargetType="DatePicker">
+            <Setter Property="Background" Value="#30FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <!-- Slider 样式 -->
+        <Style x:Key="ModernSliderStyle" TargetType="Slider">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid>
+                            <Border Height="4"
+                                    Background="#30FFFFFF"
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center"/>
+                            <Track x:Name="PART_Track">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse Width="16" Height="16"
+                                                         Fill="{StaticResource AccentBrush}"
+                                                         Cursor="Hand">
+                                                    <Ellipse.Effect>
+                                                        <DropShadowEffect BlurRadius="4" ShadowDepth="1" Opacity="0.3"/>
+                                                    </Ellipse.Effect>
+                                                </Ellipse>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 淡入动画 -->
+        <Storyboard x:Key="FadeInAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0" To="1"
+                             Duration="0:0:0.2"/>
+        </Storyboard>
+
+        <!-- 淡出动画 -->
+        <Storyboard x:Key="FadeOutAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="1" To="0"
+                             Duration="0:0:0.2"/>
+        </Storyboard>
+
+        <!-- 滑入动画 -->
+        <Storyboard x:Key="SlideInAnimation">
+            <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                             From="-20" To="0"
+                             Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <QuadraticEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0" To="1"
+                             Duration="0:0:0.3"/>
+        </Storyboard>
+
+        <!-- 待办项添加动画样式 -->
+        <Style x:Key="AnimatedTodoItemStyle" TargetType="Border">
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <TranslateTransform/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard Storyboard="{StaticResource SlideInAnimation}"/>
+                </EventTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 小图标按钮样式 -->
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#60FFFFFF"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#20FFFFFF"/>
+                                <Setter Property="Foreground" Value="#80FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#30FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>

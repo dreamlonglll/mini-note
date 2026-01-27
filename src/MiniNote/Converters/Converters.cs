@@ -175,3 +175,23 @@ public class BoolToDoubleConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+
+/// <summary>
+/// 提醒图标颜色转换器 - 有提醒时高亮，无提醒时灰暗
+/// </summary>
+public class BoolToReminderColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is bool hasReminder && hasReminder)
+        {
+            return (Color)ColorConverter.ConvertFromString("#5B8CFF"); // 有提醒时蓝色高亮
+        }
+        return (Color)ColorConverter.ConvertFromString("#60FFFFFF"); // 无提醒时灰色
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}

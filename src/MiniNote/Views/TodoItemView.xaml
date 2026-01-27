@@ -10,6 +10,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <!-- 完成复选框 -->
@@ -92,8 +93,22 @@
                     Margin="12,0"
                     ToolTip="{Binding PriorityText}"/>
 
-            <!-- 删除按钮 -->
+            <!-- 设置提醒按钮 -->
             <Button Grid.Column="3"
+                    Width="28" Height="28"
+                    Content="&#xE787;"
+                    FontFamily="Segoe MDL2 Assets"
+                    FontSize="12"
+                    ToolTip="设置提醒"
+                    Command="{Binding SetReminderCommand}"
+                    Style="{StaticResource IconButtonStyle}">
+                <Button.Foreground>
+                    <SolidColorBrush Color="{Binding HasReminder, Converter={StaticResource BoolToReminderColorConverter}}"/>
+                </Button.Foreground>
+            </Button>
+
+            <!-- 删除按钮 -->
+            <Button Grid.Column="4"
                     Width="28" Height="28"
                     Content="&#xE74D;"
                     FontFamily="Segoe MDL2 Assets"
