@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using MiniNote.Helpers;
 using MiniNote.Models;
 using MiniNote.Services;
@@ -23,6 +24,7 @@ public partial class MainWindow : Window
     private bool _isClosing = false;
     private Brush? _normalBackground;
     private Brush? _normalBorderBrush;
+    private Effect? _normalEffect;
 
     public MainWindow()
     {
@@ -31,6 +33,7 @@ public partial class MainWindow : Window
 
         _normalBackground = MainBorder.Background;
         _normalBorderBrush = MainBorder.BorderBrush;
+        _normalEffect = MainBorder.Effect;
 
         _dbService = new DatabaseService();
         _embedService = new DesktopEmbedService();
@@ -236,6 +239,7 @@ public partial class MainWindow : Window
         {
             MainBorder.Background = Brushes.Transparent;
             MainBorder.BorderBrush = Brushes.Transparent;
+            MainBorder.Effect = null;
             _embedService.EnableEmbedClickThrough(MainBorder, BtnPin);
 
             // 嵌入模式：隐藏最小化和关闭按钮，显示提示
@@ -258,6 +262,7 @@ public partial class MainWindow : Window
             {
                 MainBorder.BorderBrush = _normalBorderBrush;
             }
+            MainBorder.Effect = _normalEffect;
             _embedService.DisableEmbedClickThrough();
 
             // 普通模式：显示所有按钮
