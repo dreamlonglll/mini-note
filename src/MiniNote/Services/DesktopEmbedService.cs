@@ -40,6 +40,7 @@ public class DesktopEmbedService
     private const int HTCLIENT = 1;
 
     public bool IsEmbedded => _isEmbedded;
+    public bool IsClickThroughEnabled => _embedHookInstalled;
 
     public void EnableEmbedClickThrough(FrameworkElement hitTestRoot, FrameworkElement clickableElement)
     {
@@ -121,6 +122,19 @@ public class DesktopEmbedService
 
             Logger.Info($"EmbedToDesktop: Using {hostType} = 0x{_targetParent:X}");
             LogWindowRect(_targetParent, $"HostParent({hostType})");
+            if (TryGetWindowRect(_targetParent, out var hostRect))
+            {
+                int relativeLeft = left - hostRect.Left;
+                int relativeTop = top - hostRect.Top;
+                Logger.Info($"EmbedToDesktop: HostRect=({hostRect.Left}, {hostRect.Top})-({hostRect.Right}, {hostRect.Bottom}), Relative=({relativeLeft}, {relativeTop})");
+                left = relativeLeft;
+                top = relativeTop;
+            }
+            else
+            {
+                Logger.Warn("EmbedToDesktop: GetWindowRect failed, using screen coordinates");
+            }
+
             if (TryCreateEmbedHost(window, left, top, width, height, hostType))
             {
                 return true;
@@ -438,6 +452,17 @@ public class DesktopEmbedService
         {
             Logger.Warn($"{name} GetWindowRect failed");
         }
+    }
+
+    private bool TryGetWindowRect(IntPtr hWnd, out Win32Api.RECT rect)
+    {
+        if (hWnd == IntPtr.Zero)
+        {
+            rect = default;
+            return false;
+        }
+
+        return Win32Api.GetWindowRect(hWnd, out rect);
     }
 
     private void RestoreRenderMode()

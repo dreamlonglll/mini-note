@@ -126,7 +126,7 @@ public partial class MainWindow : Window
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         // 只在嵌入模式下处理点击穿透
-        if (msg == WM_NCHITTEST && _embedService.IsEmbedded)
+        if (msg == WM_NCHITTEST && _embedService.IsEmbedded && _embedService.IsClickThroughEnabled)
         {
             // 获取鼠标位置
             int x = (short)(lParam.ToInt32() & 0xFFFF);
@@ -315,7 +315,7 @@ public partial class MainWindow : Window
             // 嵌入模式：保持背景颜色一致，只移除边框和阴影
             MainBorder.BorderBrush = Brushes.Transparent;
             MainBorder.Effect = null;
-            _embedService.EnableEmbedClickThrough(MainBorder, BtnPin);
+            _embedService.DisableEmbedClickThrough();
 
             // 嵌入模式：隐藏最小化和关闭按钮、悬浮按钮，显示提示
             BtnMinimize.Visibility = Visibility.Collapsed;
