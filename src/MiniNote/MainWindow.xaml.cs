@@ -120,11 +120,19 @@ public partial class MainWindow : Window
     }
 
     private const int WM_NCHITTEST = 0x0084;
+    private const int WM_DPICHANGED = 0x02E0;
     private const int HTTRANSPARENT = -1;
     private const int HTCLIENT = 1;
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == WM_DPICHANGED)
+        {
+            ApplyDpiChanged(wParam, lParam);
+            handled = true;
+            return IntPtr.Zero;
+        }
+
         // 只在嵌入模式下处理点击穿透
         if (msg == WM_NCHITTEST && _embedService.IsEmbedded && _embedService.IsClickThroughEnabled)
         {
@@ -149,6 +157,35 @@ public partial class MainWindow : Window
         }
 
         return IntPtr.Zero;
+    }
+
+    private void ApplyDpiChanged(IntPtr wParam, IntPtr lParam)
+    {
+        int dpiX = wParam.ToInt32() & 0xFFFF;
+        int dpiY = (wParam.ToInt32() >> 16) & 0xFFFF;
+        if (dpiX <= 0 || dpiY <= 0)
+        {
+            return;
+        }
+
+        double scaleX = dpiX / 96.0;
+        double scaleY = dpiY / 96.0;
+        var rect = Marshal.PtrToStructure<Win32Api.RECT>(lParam);
+        int widthPx = rect.Right - rect.Left;
+        int heightPx = rect.Bottom - rect.Top;
+
+        Left = rect.Left / scaleX;
+        Top = rect.Top / scaleY;
+        Width = widthPx / scaleX;
+        Height = heightPx / scaleY;
+
+        Logger.Info($"DPI changed: {dpiX}x{dpiY}, rect=({rect.Left}, {rect.Top})-({rect.Right}, {rect.Bottom})");
+        Dispatcher.BeginInvoke(() =>
+        {
+            MainBorder.InvalidateMeasure();
+            MainBorder.InvalidateArrange();
+            MainBorder.UpdateLayout();
+        });
     }
 
     private bool IsPointOverButton(Button button, Point point)
