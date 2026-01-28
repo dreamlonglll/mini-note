@@ -11,14 +11,43 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        ResizeMode="CanResizeWithGrip"
+        ResizeMode="CanResize"
         ShowInTaskbar="False"
         Topmost="True"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Loaded="Window_Loaded"
         Closing="Window_Closing">
 
-    <Border x:Name="MainBorder"
+    <Grid x:Name="RootGrid">
+        <!-- 调整大小边缘 - 只在非嵌入模式下可见 -->
+        <Grid x:Name="ResizeBorderGrid" Panel.ZIndex="100">
+            <!-- 左边 -->
+            <Rectangle x:Name="ResizeLeft" Width="5" HorizontalAlignment="Left" Cursor="SizeWE" Fill="Transparent"
+                       MouseLeftButtonDown="ResizeBorder_MouseLeftButtonDown" Tag="Left"/>
+            <!-- 右边 -->
+            <Rectangle x:Name="ResizeRight" Width="5" HorizontalAlignment="Right" Cursor="SizeWE" Fill="Transparent"
+                       MouseLeftButtonDown="ResizeBorder_MouseLeftButtonDown" Tag="Right"/>
+            <!-- 上边 -->
+            <Rectangle x:Name="ResizeTop" Height="5" VerticalAlignment="Top" Cursor="SizeNS" Fill="Transparent"
+                       MouseLeftButtonDown="ResizeBorder_MouseLeftButtonDown" Tag="Top"/>
+            <!-- 下边 -->
+            <Rectangle x:Name="ResizeBottom" Height="5" VerticalAlignment="Bottom" Cursor="SizeNS" Fill="Transparent"
+                       MouseLeftButtonDown="ResizeBorder_MouseLeftButtonDown" Tag="Bottom"/>
+            <!-- 左上角 -->
+            <Rectangle x:Name="ResizeTopLeft" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="SizeNWSE" Fill="Transparent"
+                       MouseLeftButtonDown="ResizeBorder_MouseLeftButtonDown" Tag="TopLeft"/>
+            <!-- 右上角 -->
+            <Rectangle x:Name="ResizeTopRight" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="SizeNESW" Fill="Transparent"
+                       MouseLeftButtonDown="ResizeBorder_MouseLeftButtonDown" Tag="TopRight"/>
+            <!-- 左下角 -->
+            <Rectangle x:Name="ResizeBottomLeft" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Cursor="SizeNESW" Fill="Transparent"
+                       MouseLeftButtonDown="ResizeBorder_MouseLeftButtonDown" Tag="BottomLeft"/>
+            <!-- 右下角 -->
+            <Rectangle x:Name="ResizeBottomRight" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" Fill="Transparent"
+                       MouseLeftButtonDown="ResizeBorder_MouseLeftButtonDown" Tag="BottomRight"/>
+        </Grid>
+
+        <Border x:Name="MainBorder"
             CornerRadius="0"
             BorderBrush="{DynamicResource AppBorderBrush}"
             BorderThickness="1"
@@ -180,4 +209,5 @@
             </Border>
         </Grid>
     </Border>
+    </Grid>
 </Window>

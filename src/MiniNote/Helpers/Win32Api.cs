@@ -122,4 +122,24 @@ public static class Win32Api
     public const uint SWP_FRAMECHANGED = 0x0020;
 
     #endregion
+
+    #region 窗口调整大小相关
+
+    [DllImport("user32.dll")]
+    public static extern bool ReleaseCapture();
+
+    public const int WM_SYSCOMMAND = 0x0112;
+
+    // 窗口调整大小方向
+    public const int SC_SIZE = 0xF000;
+    public const int WMSZ_LEFT = 1;
+    public const int WMSZ_RIGHT = 2;
+    public const int WMSZ_TOP = 3;
+    public const int WMSZ_TOPLEFT = 4;
+    public const int WMSZ_TOPRIGHT = 5;
+    public const int WMSZ_BOTTOM = 6;
+    public const int WMSZ_BOTTOMLEFT = 7;
+    public const int WMSZ_BOTTOMRIGHT = 8;
+
+    #endregion
 }

@@ -370,6 +370,9 @@ public partial class MainWindow : Window
             IconPin.Kind = MaterialDesignThemes.Wpf.PackIconKind.PinOff;
             BtnPin.ToolTip = "取消嵌入桌面";
 
+            // 嵌入模式：隐藏调整大小边缘
+            ResizeBorderGrid.Visibility = Visibility.Collapsed;
+
             // 更新托盘菜单
             _trayService.UpdateEmbedMenuText(true);
             _trayService.ShowNotification("MiniNote", "已嵌入桌面，右键托盘图标可取消嵌入");
@@ -389,6 +392,9 @@ public partial class MainWindow : Window
             BtnAddFloat.Visibility = Visibility.Visible;
             IconPin.Kind = MaterialDesignThemes.Wpf.PackIconKind.PinOutline;
             BtnPin.ToolTip = "嵌入桌面";
+
+            // 普通模式：显示调整大小边缘
+            ResizeBorderGrid.Visibility = Visibility.Visible;
 
             // 更新托盘菜单
             _trayService.UpdateEmbedMenuText(false);
@@ -552,6 +558,43 @@ public partial class MainWindow : Window
     {
         Logger.Info("Close button clicked");
         Close();
+    }
+
+    /// <summary>
+    /// 处理窗口边缘调整大小
+    /// </summary>
+    private void ResizeBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // 嵌入模式下禁用调整大小
+        if (_embedService.IsEmbedded)
+        {
+            return;
+        }
+
+        if (sender is FrameworkElement element && element.Tag is string direction)
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            Win32Api.ReleaseCapture();
+
+            int resizeDirection = direction switch
+            {
+                "Left" => Win32Api.WMSZ_LEFT,
+                "Right" => Win32Api.WMSZ_RIGHT,
+                "Top" => Win32Api.WMSZ_TOP,
+                "Bottom" => Win32Api.WMSZ_BOTTOM,
+                "TopLeft" => Win32Api.WMSZ_TOPLEFT,
+                "TopRight" => Win32Api.WMSZ_TOPRIGHT,
+                "BottomLeft" => Win32Api.WMSZ_BOTTOMLEFT,
+                "BottomRight" => Win32Api.WMSZ_BOTTOMRIGHT,
+                _ => 0
+            };
+
+            if (resizeDirection != 0)
+            {
+                Win32Api.SendMessage(hwnd, Win32Api.WM_SYSCOMMAND, 
+                    new IntPtr(Win32Api.SC_SIZE + resizeDirection), IntPtr.Zero);
+            }
+        }
     }
 
     /// <summary>
