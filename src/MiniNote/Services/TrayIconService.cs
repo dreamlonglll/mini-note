@@ -16,6 +16,7 @@ public class TrayIconService : IDisposable
 
     public event Action? OnToggleEmbed;
     public event Action? OnAddTodo;
+    public event Action? OnResetPosition;
     public event Action? OnExit;
 
     private ToolStripMenuItem? _embedMenuItem;
@@ -36,6 +37,11 @@ public class TrayIconService : IDisposable
         var addTodoItem = new ToolStripMenuItem("添加待办项");
         addTodoItem.Click += (s, e) => OnAddTodo?.Invoke();
         _contextMenu.Items.Add(addTodoItem);
+
+        // 重置位置
+        var resetPositionItem = new ToolStripMenuItem("重置位置");
+        resetPositionItem.Click += (s, e) => OnResetPosition?.Invoke();
+        _contextMenu.Items.Add(resetPositionItem);
 
         _contextMenu.Items.Add(new ToolStripSeparator());
 

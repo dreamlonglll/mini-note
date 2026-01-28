@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -73,12 +74,20 @@ public partial class MainWindow : Window
             });
         };
 
+        // 重置位置
+        _trayService.OnResetPosition += () =>
+        {
+            Dispatcher.Invoke(async () =>
+            {
+                await ResetWindowPosition();
+            });
+        };
+
         // 退出
         _trayService.OnExit += () =>
         {
             Dispatcher.Invoke(() =>
             {
-                _isClosing = true;
                 Close();
             });
         };
@@ -388,9 +397,22 @@ public partial class MainWindow : Window
 
     private async void Window_Closing(object sender, CancelEventArgs e)
     {
+        // 防止重复处理
         if (_isClosing) return;
+        _isClosing = true;
 
         Logger.Info("Window closing, saving settings...");
+
+        // 保存窗口位置、大小和固定状态
+        _settings.WindowX = Left;
+        _settings.WindowY = Top;
+        _settings.WindowWidth = Width;
+        _settings.WindowHeight = Height;
+        _settings.EmbedDesktop = _embedService.IsEmbedded;
+        
+        Logger.Info($"Saving settings: X={_settings.WindowX}, Y={_settings.WindowY}, W={_settings.WindowWidth}, H={_settings.WindowHeight}, Embed={_settings.EmbedDesktop}");
+        await _dbService.SaveSettingsAsync(_settings);
+        Logger.Info("Settings saved successfully");
 
         // 释放托盘图标
         _trayService.Dispose();
@@ -398,13 +420,6 @@ public partial class MainWindow : Window
         // 停止提醒服务
         _notificationService.StopReminderService();
         _notificationService.Dispose();
-
-        // 保存窗口位置和大小
-        _settings.WindowX = Left;
-        _settings.WindowY = Top;
-        _settings.WindowWidth = Width;
-        _settings.WindowHeight = Height;
-        await _dbService.SaveSettingsAsync(_settings);
 
         // 取消桌面嵌入
         if (_embedService.IsEmbedded)
@@ -536,8 +551,66 @@ public partial class MainWindow : Window
     private void BtnClose_Click(object sender, RoutedEventArgs e)
     {
         Logger.Info("Close button clicked");
-        _isClosing = true;
         Close();
+    }
+
+    /// <summary>
+    /// 重置窗口位置到最左边屏幕的左边距10%、上边距10%位置，并取消固定状态
+    /// </summary>
+    private async Task ResetWindowPosition()
+    {
+        Logger.Info("Resetting window position");
+
+        // 获取DPI缩放比例
+        var source = PresentationSource.FromVisual(this);
+        double dpiScaleX = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+        double dpiScaleY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
+        Logger.Info($"DPI scale: {dpiScaleX}x{dpiScaleY}");
+
+        // 获取所有屏幕，找到最左边的屏幕
+        var screens = System.Windows.Forms.Screen.AllScreens;
+        var leftmostScreen = screens[0];
+        foreach (var screen in screens)
+        {
+            if (screen.Bounds.X < leftmostScreen.Bounds.X)
+            {
+                leftmostScreen = screen;
+            }
+        }
+
+        // 计算目标位置：左边距10%、上边距10%（物理像素）
+        var workingArea = leftmostScreen.WorkingArea;
+        double targetXPixel = workingArea.X + workingArea.Width * 0.1;
+        double targetYPixel = workingArea.Y + workingArea.Height * 0.1;
+
+        // 转换为WPF设备无关像素(DIP)
+        double targetX = targetXPixel / dpiScaleX;
+        double targetY = targetYPixel / dpiScaleY;
+
+        Logger.Info($"Target screen: {leftmostScreen.DeviceName}, WorkingArea: ({workingArea.X}, {workingArea.Y}, {workingArea.Width}, {workingArea.Height})");
+        Logger.Info($"Target position (pixels): ({targetXPixel}, {targetYPixel}), (DIP): ({targetX}, {targetY})");
+
+        // 如果当前是固定状态，先取消固定
+        if (_embedService.IsEmbedded)
+        {
+            _embedService.DetachFromDesktop(this);
+            _settings.EmbedDesktop = false;
+            SetEmbeddedMode(false);
+            Logger.Info("Detached from desktop for position reset");
+        }
+
+        // 设置窗口位置
+        Left = targetX;
+        Top = targetY;
+
+        // 保存设置
+        _settings.WindowX = Left;
+        _settings.WindowY = Top;
+        _settings.EmbedDesktop = false;
+        await _dbService.SaveSettingsAsync(_settings);
+
+        Logger.Info($"Window position reset to ({Left}, {Top})");
+        _trayService.ShowNotification("MiniNote", "窗口位置已重置");
     }
 
     private void BtnSettings_Click(object sender, RoutedEventArgs e)
